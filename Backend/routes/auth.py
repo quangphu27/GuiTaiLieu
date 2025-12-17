@@ -40,18 +40,34 @@ def login():
 def register():
     try:
         data = request.get_json()
-        username = data.get('username', '')
+        username = data.get('username', '').strip()
         password = data.get('password', '')
         
-        if not username or not password:
-            return jsonify({'message': 'Vui lòng nhập đầy đủ thông tin'}), 400
+        errors = {}
         
-        if len(password) < 6:
-            return jsonify({'message': 'Mật khẩu phải có ít nhất 6 ký tự'}), 400
+        if not username:
+            errors['username'] = 'Vui lòng nhập tên đăng nhập'
+        elif len(username) < 3:
+            errors['username'] = 'Tên đăng nhập phải có ít nhất 3 ký tự'
+        elif len(username) > 50:
+            errors['username'] = 'Tên đăng nhập không được vượt quá 50 ký tự'
+        else:
+            existing_user = User.get_by_username(username)
+            if existing_user:
+                errors['username'] = 'Tên đăng nhập đã tồn tại'
         
-        existing_user = User.get_by_username(username)
-        if existing_user:
-            return jsonify({'message': 'Tên đăng nhập đã tồn tại'}), 400
+        if not password:
+            errors['password'] = 'Vui lòng nhập mật khẩu'
+        elif len(password) < 6:
+            errors['password'] = 'Mật khẩu phải có ít nhất 6 ký tự'
+        elif len(password) > 100:
+            errors['password'] = 'Mật khẩu không được vượt quá 100 ký tự'
+        
+        if errors:
+            return jsonify({
+                'message': 'Vui lòng kiểm tra lại thông tin đăng ký',
+                'errors': errors
+            }), 400
         
         user_id = User.create(username, password)
         token = generate_token(user_id)
@@ -66,7 +82,11 @@ def register():
         }), 201
     
     except Exception as e:
-        return jsonify({'message': 'Lỗi đăng ký', 'error': str(e)}), 500
+        return jsonify({
+            'message': 'Lỗi đăng ký',
+            'error': str(e),
+            'errors': {'general': 'Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại sau.'}
+        }), 500
 
 @auth_bp.route('/verify', methods=['GET'])
 def verify():

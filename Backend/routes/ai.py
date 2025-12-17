@@ -3,7 +3,7 @@ import json
 from flask import Blueprint, request, jsonify, Response, stream_with_context
 from models.unit import Unit
 from models.document import Document
-from utils.jwt_helper import jwt_required as auth_required
+from utils.jwt_helper import jwt_required as auth_required, get_current_user
 from utils.ai_service import suggest_units_from_document, suggest_units_from_document_streaming, extract_text_from_file
 
 ai_bp = Blueprint('ai', __name__)
@@ -12,17 +12,18 @@ ai_bp = Blueprint('ai', __name__)
 @auth_required
 def suggest_units_endpoint():
     try:
+        user_id = get_current_user()
         data = request.get_json()
         document_id = data.get('document_id', '')
         
         if not document_id:
             return jsonify({'message': 'Vui lòng cung cấp ID tài liệu'}), 400
         
-        document = Document.get_by_id(document_id)
+        document = Document.get_by_id_for_user(document_id, user_id)
         if not document:
             return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
         
-        all_units = Unit.get_all()
+        all_units = Unit.get_all_by_user(user_id)
         units_with_id = [Unit.to_dict(unit) for unit in all_units]
         
         if not units_with_id:
@@ -73,17 +74,18 @@ def suggest_units_endpoint():
 @auth_required
 def suggest_units_stream_endpoint():
     try:
+        user_id = get_current_user()
         data = request.get_json()
         document_id = data.get('document_id', '')
         
         if not document_id:
             return jsonify({'message': 'Vui lòng cung cấp ID tài liệu'}), 400
         
-        document = Document.get_by_id(document_id)
+        document = Document.get_by_id_for_user(document_id, user_id)
         if not document:
             return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
         
-        all_units = Unit.get_all()
+        all_units = Unit.get_all_by_user(user_id)
         units_with_id = [Unit.to_dict(unit) for unit in all_units]
         
         if not units_with_id:
@@ -158,13 +160,14 @@ def suggest_units_stream_endpoint():
 @auth_required
 def preview_content_endpoint():
     try:
+        user_id = get_current_user()
         data = request.get_json()
         document_id = data.get('document_id', '')
         
         if not document_id:
             return jsonify({'message': 'Vui lòng cung cấp ID tài liệu'}), 400
         
-        document = Document.get_by_id(document_id)
+        document = Document.get_by_id_for_user(document_id, user_id)
         if not document:
             return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
         

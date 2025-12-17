@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, send_file
 from models.document import Document
-from utils.jwt_helper import jwt_required as auth_required
+from utils.jwt_helper import jwt_required as auth_required, get_current_user
 import os
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -27,7 +27,8 @@ def get_file_size(size_bytes):
 @auth_required
 def get_documents():
     try:
-        documents = Document.get_all()
+        user_id = get_current_user()
+        documents = Document.get_all_by_user(user_id)
         result = [Document.to_dict(doc) for doc in documents]
         return jsonify({'documents': result}), 200
     except Exception as e:
@@ -57,13 +58,16 @@ def upload_document():
         file_type = 'DOCX' if file_ext == 'DOC' else file_ext
         file_size = get_file_size(os.path.getsize(filepath))
         
+        user_id = get_current_user()
+
         document_data = {
             'name': filename,
             'type': file_type,
             'size': file_size,
             'filename': unique_filename,
             'filepath': filepath,
-            'status': 'active'
+            'status': 'active',
+            'user_id': user_id
         }
         
         doc_id = Document.create(document_data)
@@ -81,7 +85,8 @@ def upload_document():
 @auth_required
 def update_document(doc_id):
     try:
-        document = Document.get_by_id(doc_id)
+        user_id = get_current_user()
+        document = Document.get_by_id_for_user(doc_id, user_id)
         if not document:
             return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
         
@@ -121,9 +126,9 @@ def update_document(doc_id):
                 update_data['name'] = data['name']
         
         if update_data:
-            success = Document.update(doc_id, update_data)
+            success = Document.update_for_user(doc_id, user_id, update_data)
             if success:
-                updated_doc = Document.get_by_id(doc_id)
+                updated_doc = Document.get_by_id_for_user(doc_id, user_id)
                 return jsonify({
                     'message': 'Cập nhật tài liệu thành công',
                     'document': Document.to_dict(updated_doc)
@@ -140,14 +145,15 @@ def update_document(doc_id):
 @auth_required
 def delete_document(doc_id):
     try:
-        document = Document.get_by_id(doc_id)
+        user_id = get_current_user()
+        document = Document.get_by_id_for_user(doc_id, user_id)
         if not document:
             return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
         
         if 'filepath' in document and os.path.exists(document['filepath']):
             os.remove(document['filepath'])
         
-        success = Document.delete(doc_id)
+        success = Document.delete_for_user(doc_id, user_id)
         if success:
             return jsonify({'message': 'Xóa tài liệu thành công'}), 200
         else:
@@ -160,7 +166,8 @@ def delete_document(doc_id):
 @auth_required
 def download_document(doc_id):
     try:
-        document = Document.get_by_id(doc_id)
+        user_id = get_current_user()
+        document = Document.get_by_id_for_user(doc_id, user_id)
         if not document:
             return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
         

@@ -10,25 +10,38 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { success, error } = useNotification();
+  const { success, error: showError } = useNotification();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!username || !password || !confirmPassword) {
-      error('Vui lòng điền đầy đủ thông tin');
-      return;
+    setErrors({});
+    
+    const newErrors = {};
+    
+    if (!username.trim()) {
+      newErrors.username = 'Vui lòng nhập tên đăng nhập';
+    } else if (username.trim().length < 3) {
+      newErrors.username = 'Tên đăng nhập phải có ít nhất 3 ký tự';
     }
     
-    if (password.length < 6) {
-      error('Mật khẩu phải có ít nhất 6 ký tự');
-      return;
+    if (!password) {
+      newErrors.password = 'Vui lòng nhập mật khẩu';
+    } else if (password.length < 6) {
+      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
     }
     
-    if (password !== confirmPassword) {
-      error('Mật khẩu xác nhận không khớp');
+    if (!confirmPassword) {
+      newErrors.confirmPassword = 'Vui lòng xác nhận mật khẩu';
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = 'Mật khẩu xác nhận không khớp';
+    }
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
     
@@ -43,9 +56,34 @@ const Register = () => {
         navigate('/documents');
       }
     } catch (err) {
-      error(err.message || 'Đăng ký thất bại');
+      if (err.errors) {
+        setErrors(err.errors);
+        if (err.message) {
+          showError(err.message);
+        }
+      } else {
+        showError(err.message || 'Đăng ký thất bại');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const handleInputChange = (field, value) => {
+    if (errors[field]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+    
+    if (field === 'username') {
+      setUsername(value);
+    } else if (field === 'password') {
+      setPassword(value);
+    } else if (field === 'confirmPassword') {
+      setConfirmPassword(value);
     }
   };
 
@@ -69,7 +107,7 @@ const Register = () => {
           
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-group">
-              <div className="input-wrapper">
+              <div className={`input-wrapper ${errors.username ? 'input-error' : ''}`}>
                 <svg className="input-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <path d="M10 10C12.7614 10 15 7.76142 15 5C15 2.23858 12.7614 0 10 0C7.23858 0 5 2.23858 5 5C5 7.76142 7.23858 10 10 10Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   <path d="M0 18C0 14.6863 2.68629 12 6 12H14C17.3137 12 20 14.6863 20 18V20H0V18Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -78,14 +116,17 @@ const Register = () => {
                   type="text"
                   id="username"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => handleInputChange('username', e.target.value)}
                   placeholder="Tên đăng nhập"
                 />
               </div>
+              {errors.username && (
+                <div className="error-message">{errors.username}</div>
+              )}
             </div>
 
             <div className="form-group">
-              <div className="input-wrapper">
+              <div className={`input-wrapper ${errors.password ? 'input-error' : ''}`}>
                 <svg className="input-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <rect x="2" y="7" width="16" height="11" rx="2" stroke="currentColor" strokeWidth="1.5"/>
                   <path d="M6 7V5C6 2.79086 7.79086 1 10 1C12.2091 1 14 2.79086 14 5V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -94,14 +135,17 @@ const Register = () => {
                   type="password"
                   id="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
                   placeholder="Mật khẩu"
                 />
               </div>
+              {errors.password && (
+                <div className="error-message">{errors.password}</div>
+              )}
             </div>
 
             <div className="form-group">
-              <div className="input-wrapper">
+              <div className={`input-wrapper ${errors.confirmPassword ? 'input-error' : ''}`}>
                 <svg className="input-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <rect x="2" y="7" width="16" height="11" rx="2" stroke="currentColor" strokeWidth="1.5"/>
                   <path d="M6 7V5C6 2.79086 7.79086 1 10 1C12.2091 1 14 2.79086 14 5V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -110,10 +154,13 @@ const Register = () => {
                   type="password"
                   id="confirmPassword"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                   placeholder="Xác nhận mật khẩu"
                 />
               </div>
+              {errors.confirmPassword && (
+                <div className="error-message">{errors.confirmPassword}</div>
+              )}
             </div>
 
             <button type="submit" className="login-button" disabled={loading}>

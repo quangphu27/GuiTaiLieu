@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models.unit import Unit
-from utils.jwt_helper import jwt_required as auth_required
+from utils.jwt_helper import jwt_required as auth_required, get_current_user
 
 units_bp = Blueprint('units', __name__)
 
@@ -8,7 +8,8 @@ units_bp = Blueprint('units', __name__)
 @auth_required
 def get_units():
     try:
-        units = Unit.get_all()
+        user_id = get_current_user()
+        units = Unit.get_all_by_user(user_id)
         result = [Unit.to_dict(unit) for unit in units]
         return jsonify({'units': result}), 200
     except Exception as e:
@@ -23,12 +24,15 @@ def create_unit():
         if not data.get('name') or not data.get('code') or not data.get('email'):
             return jsonify({'message': 'Vui lòng điền đầy đủ thông tin bắt buộc (Tên, Mã, Email)'}), 400
         
+        user_id = get_current_user()
+
         unit_data = {
             'name': data['name'],
             'code': data['code'].upper(),
             'email': data['email'],
             'phone': data.get('phone', 'Chưa có'),
-            'address': data.get('address', 'Chưa có')
+            'address': data.get('address', 'Chưa có'),
+            'user_id': user_id
         }
         
         unit_id, error = Unit.create(unit_data)
@@ -49,7 +53,8 @@ def create_unit():
 @auth_required
 def update_unit(unit_id):
     try:
-        unit = Unit.get_by_id(unit_id)
+        user_id = get_current_user()
+        unit = Unit.get_by_id_for_user(unit_id, user_id)
         if not unit:
             return jsonify({'message': 'Không tìm thấy đơn vị'}), 404
         
@@ -68,7 +73,7 @@ def update_unit(unit_id):
             update_data['address'] = data['address']
         
         if update_data:
-            success, error_msg = Unit.update(unit_id, update_data)
+            success, error_msg = Unit.update_for_user(unit_id, user_id, update_data)
             if success:
                 updated_unit = Unit.get_by_id(unit_id)
                 return jsonify({
@@ -87,11 +92,12 @@ def update_unit(unit_id):
 @auth_required
 def delete_unit(unit_id):
     try:
-        unit = Unit.get_by_id(unit_id)
+        user_id = get_current_user()
+        unit = Unit.get_by_id_for_user(unit_id, user_id)
         if not unit:
             return jsonify({'message': 'Không tìm thấy đơn vị'}), 404
         
-        success = Unit.delete(unit_id)
+        success = Unit.delete_for_user(unit_id, user_id)
         if success:
             return jsonify({'message': 'Xóa đơn vị thành công'}), 200
         else:
@@ -107,7 +113,8 @@ def get_units_by_ids():
         data = request.get_json()
         unit_ids = data.get('ids', [])
         
-        units = Unit.get_by_ids(unit_ids)
+        user_id = get_current_user()
+        units = Unit.get_by_ids_for_user(unit_ids, user_id)
         result = [Unit.to_dict(unit) for unit in units]
         
         return jsonify({'units': result}), 200

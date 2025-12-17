@@ -3,7 +3,7 @@ from models.history import History
 from models.document import Document
 from models.unit import Unit
 from config.database import get_db
-from utils.jwt_helper import jwt_required as auth_required
+from utils.jwt_helper import jwt_required as auth_required, get_current_user
 from utils.email_service import send_document_email
 
 history_bp = Blueprint('history', __name__)
@@ -12,13 +12,14 @@ history_bp = Blueprint('history', __name__)
 @auth_required
 def get_history():
     try:
-        history_list = History.get_all()
+        user_id = get_current_user()
+        history_list = History.get_all_by_user(user_id)
         result = []
         
         for item in history_list:
             history_dict = History.to_dict(item)
-            document = Document.get_by_id(item.get('document_id'))
-            unit = Unit.get_by_id(item.get('unit_id'))
+            document = Document.get_by_id_for_user(item.get('document_id'), user_id)
+            unit = Unit.get_by_id_for_user(item.get('unit_id'), user_id)
             
             history_dict['documentName'] = document.get('name', 'Tài liệu đã bị xóa') if document else 'Tài liệu đã bị xóa'
             history_dict['unitName'] = unit.get('name', 'Đơn vị đã bị xóa') if unit else 'Đơn vị đã bị xóa'
@@ -35,16 +36,17 @@ def get_history():
 @auth_required
 def get_history_detail(history_id):
     try:
+        user_id = get_current_user()
         from bson import ObjectId
         db = get_db()
-        history_item = db.history.find_one({'_id': ObjectId(history_id)})
+        history_item = db.history.find_one({'_id': ObjectId(history_id), 'user_id': user_id})
         
         if not history_item:
             return jsonify({'message': 'Không tìm thấy lịch sử'}), 404
         
         history_dict = History.to_dict(history_item)
-        document = Document.get_by_id(history_item.get('document_id'))
-        unit = Unit.get_by_id(history_item.get('unit_id'))
+        document = Document.get_by_id_for_user(history_item.get('document_id'), user_id)
+        unit = Unit.get_by_id_for_user(history_item.get('unit_id'), user_id)
         
         history_dict['document'] = Document.to_dict(document) if document else None
         history_dict['unit'] = Unit.to_dict(unit) if unit else None
@@ -59,6 +61,7 @@ def get_history_detail(history_id):
 @auth_required
 def send_document():
     try:
+        user_id = get_current_user()
         data = request.get_json()
         document_id = data.get('document_id')
         unit_ids = data.get('unit_ids', [])
@@ -66,11 +69,11 @@ def send_document():
         if not document_id or not unit_ids:
             return jsonify({'message': 'Vui lòng chọn tài liệu và đơn vị nhận'}), 400
         
-        document = Document.get_by_id(document_id)
+        document = Document.get_by_id_for_user(document_id, user_id)
         if not document:
             return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
         
-        units = Unit.get_by_ids(unit_ids)
+        units = Unit.get_by_ids_for_user(unit_ids, user_id)
         if not units:
             return jsonify({'message': 'Không tìm thấy đơn vị'}), 404
         
@@ -97,7 +100,8 @@ def send_document():
             history_data = {
                 'document_id': document_id,
                 'unit_id': unit_id,
-                'status': 'Đã gửi'
+                'status': 'Đã gửi',
+                'user_id': user_id
             }
             
             history_id = History.create(history_data)

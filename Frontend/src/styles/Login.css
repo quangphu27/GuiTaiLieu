@@ -101,6 +101,29 @@
   font-weight: 400;
 }
 
+.input-wrapper.input-error input {
+  border-color: #e53e3e;
+}
+
+.input-wrapper.input-error .input-icon {
+  color: #e53e3e;
+}
+
+.error-message {
+  color: #e53e3e;
+  font-size: 13px;
+  margin-top: 6px;
+  margin-left: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.error-message::before {
+  content: "⚠";
+  font-size: 14px;
+}
+
 .login-button {
   display: flex;
   align-items: center;

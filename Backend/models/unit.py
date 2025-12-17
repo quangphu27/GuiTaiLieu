@@ -2,9 +2,13 @@ from datetime import datetime
 from config.database import get_db
 from pymongo.errors import DuplicateKeyError
 
+
 class Unit:
     @staticmethod
     def create(data):
+        """
+        Tạo đơn vị mới. Caller cần truyền kèm 'user_id' để gắn với tài khoản.
+        """
         db = get_db()
         data['created_at'] = datetime.utcnow()
         data['updated_at'] = datetime.utcnow()
@@ -14,21 +18,43 @@ class Unit:
         except DuplicateKeyError as e:
             field = str(e).split('index: ')[1].split('_')[0] if 'index:' in str(e) else 'field'
             return None, f"{field.capitalize()} đã tồn tại"
-    
+
+    @staticmethod
+    def get_all_by_user(user_id):
+        """
+        Lấy tất cả đơn vị thuộc về một user cụ thể.
+        """
+        db = get_db()
+        return list(
+            db.units.find({'user_id': user_id}).sort('created_at', -1)
+        )
+
     @staticmethod
     def get_all():
+        """
+        Hàm cũ, vẫn giữ cho các luồng hệ thống nếu cần dùng chung.
+        """
         db = get_db()
         return list(db.units.find().sort('created_at', -1))
-    
+
     @staticmethod
     def get_by_id(unit_id):
         db = get_db()
         from bson import ObjectId
         try:
             return db.units.find_one({'_id': ObjectId(unit_id)})
-        except:
+        except Exception:
             return None
-    
+
+    @staticmethod
+    def get_by_id_for_user(unit_id, user_id):
+        db = get_db()
+        from bson import ObjectId
+        try:
+            return db.units.find_one({'_id': ObjectId(unit_id), 'user_id': user_id})
+        except Exception:
+            return None
+
     @staticmethod
     def get_by_ids(unit_ids):
         db = get_db()
@@ -36,20 +62,34 @@ class Unit:
         try:
             object_ids = [ObjectId(uid) for uid in unit_ids]
             return list(db.units.find({'_id': {'$in': object_ids}}))
-        except:
+        except Exception:
             return []
-    
+
     @staticmethod
-    def update(unit_id, data):
+    def get_by_ids_for_user(unit_ids, user_id):
+        db = get_db()
+        from bson import ObjectId
+        try:
+            object_ids = [ObjectId(uid) for uid in unit_ids]
+            return list(
+                db.units.find(
+                    {'_id': {'$in': object_ids}, 'user_id': user_id}
+                )
+            )
+        except Exception:
+            return []
+
+    @staticmethod
+    def update_for_user(unit_id, user_id, data):
         db = get_db()
         from bson import ObjectId
         try:
             data['updated_at'] = datetime.utcnow()
             if 'code' in data:
                 data['code'] = data['code'].upper()
-            
+
             result = db.units.update_one(
-                {'_id': ObjectId(unit_id)},
+                {'_id': ObjectId(unit_id), 'user_id': user_id},
                 {'$set': data}
             )
             return result.modified_count > 0, None
@@ -58,17 +98,30 @@ class Unit:
             return False, f"{field.capitalize()} đã tồn tại"
         except Exception as e:
             return False, str(e)
-    
+
+    @staticmethod
+    def delete_for_user(unit_id, user_id):
+        db = get_db()
+        from bson import ObjectId
+        try:
+            result = db.units.delete_one({'_id': ObjectId(unit_id), 'user_id': user_id})
+            return result.deleted_count > 0
+        except Exception:
+            return False
+
     @staticmethod
     def delete(unit_id):
+        """
+        Hàm xóa cũ, giữ lại cho các luồng hệ thống nếu cần.
+        """
         db = get_db()
         from bson import ObjectId
         try:
             result = db.units.delete_one({'_id': ObjectId(unit_id)})
             return result.deleted_count > 0
-        except:
+        except Exception:
             return False
-    
+
     @staticmethod
     def to_dict(unit):
         if not unit:
@@ -80,4 +133,5 @@ class Unit:
         if 'updated_at' in unit:
             unit['updated_at'] = unit['updated_at'].isoformat()
         return unit
+
 
