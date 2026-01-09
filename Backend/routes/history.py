@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 from models.history import History
 from models.document import Document
 from models.unit import Unit
+from models.user import User
+from models.department import Department
 from config.database import get_db
 from utils.jwt_helper import jwt_required as auth_required, get_current_user
 from utils.email_service import send_document_email
@@ -57,11 +59,42 @@ def get_history_detail(history_id):
     except Exception as e:
         return jsonify({'message': 'Lỗi lấy chi tiết lịch sử', 'error': str(e)}), 500
 
+@history_bp.route('/document/<doc_id>', methods=['GET'])
+@auth_required
+def get_history_by_document(doc_id):
+    try:
+        user_id = get_current_user()
+        history_list = History.get_by_document_id_for_user(doc_id, user_id)
+        result = []
+        
+        for item in history_list:
+            history_dict = History.to_dict(item)
+            document = Document.get_by_id_for_user(item.get('document_id'), user_id)
+            unit = Unit.get_by_id_for_user(item.get('unit_id'), user_id)
+            
+            history_dict['documentName'] = document.get('name', 'Tài liệu đã bị xóa') if document else 'Tài liệu đã bị xóa'
+            history_dict['unitName'] = unit.get('name', 'Đơn vị đã bị xóa') if unit else 'Đơn vị đã bị xóa'
+            history_dict['document_id'] = item.get('document_id')
+            history_dict['unit_id'] = item.get('unit_id')
+            
+            result.append(history_dict)
+        
+        return jsonify({'history': result}), 200
+    except Exception as e:
+        return jsonify({'message': 'Lỗi lấy lịch sử', 'error': str(e)}), 500
+
 @history_bp.route('/send', methods=['POST'])
 @auth_required
 def send_document():
     try:
         user_id = get_current_user()
+        user = User.get_by_id(user_id)
+        if not user:
+            return jsonify({'message': 'Không tìm thấy người dùng'}), 404
+        
+        user_role = user.get('role', 'employee')
+        user_department_id = user.get('department_id')
+        
         data = request.get_json()
         document_id = data.get('document_id')
         unit_ids = data.get('unit_ids', [])
@@ -73,9 +106,30 @@ def send_document():
         if not document:
             return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
         
-        units = Unit.get_by_ids_for_user(unit_ids, user_id)
-        if not units:
+        if user_role == 'director':
+            all_units = Unit.get_by_ids(unit_ids)
+        else:
+            all_units = Unit.get_by_ids_for_user(unit_ids, user_id)
+        
+        if not all_units:
             return jsonify({'message': 'Không tìm thấy đơn vị'}), 404
+        
+        if user_role == 'department_head':
+            if not user_department_id:
+                return jsonify({'message': 'Bạn chưa được phân công phòng ban'}), 403
+            
+            units = []
+            for unit in all_units:
+                unit_dept_id = unit.get('department_id')
+                if unit_dept_id and str(unit_dept_id) == str(user_department_id):
+                    units.append(unit)
+            
+            if len(units) != len(unit_ids):
+                return jsonify({'message': 'Bạn chỉ có thể gửi tài liệu cho các đơn vị trong phòng ban của mình'}), 403
+        elif user_role == 'director':
+            units = all_units
+        else:
+            return jsonify({'message': 'Bạn không có quyền gửi tài liệu'}), 403
         
         import os
         success_count = 0

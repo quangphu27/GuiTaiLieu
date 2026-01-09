@@ -25,6 +25,8 @@ def create_indexes():
     db.units.create_index("email", unique=True)
     db.history.create_index("document_id")
     db.history.create_index("unit_id")
+    db.departments.create_index("name", unique=True)
+    db.users.create_index("username", unique=True)
 
 def get_db():
     if db is None:

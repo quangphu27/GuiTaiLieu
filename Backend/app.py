@@ -24,12 +24,16 @@ from routes.documents import documents_bp
 from routes.units import units_bp
 from routes.history import history_bp
 from routes.ai import ai_bp
+from routes.departments import departments_bp
+from routes.users import users_bp
 
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(documents_bp, url_prefix='/api/documents')
 app.register_blueprint(units_bp, url_prefix='/api/units')
 app.register_blueprint(history_bp, url_prefix='/api/history')
 app.register_blueprint(ai_bp, url_prefix='/api/ai')
+app.register_blueprint(departments_bp, url_prefix='/api/departments')
+app.register_blueprint(users_bp, url_prefix='/api/users')
 
 init_db()
 User.init_default_user()

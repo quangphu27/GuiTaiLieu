@@ -215,6 +215,11 @@ export const historyAPI = {
     return data.history;
   },
   
+  getByDocument: async (documentId) => {
+    const data = await apiRequest(`/history/document/${documentId}`);
+    return data.history || [];
+  },
+  
   send: async (documentId, unitIds) => {
     return await apiRequest('/history/send', {
       method: 'POST',

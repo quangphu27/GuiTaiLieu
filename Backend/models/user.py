@@ -4,12 +4,15 @@ import bcrypt
 
 class User:
     @staticmethod
-    def create(username, password):
+    def create(username, password, role='employee', department_id=None, created_by=None):
         db = get_db()
         hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         user = {
             'username': username,
             'password': hashed.decode('utf-8'),
+            'role': role,
+            'department_id': department_id,
+            'created_by': created_by,
             'created_at': datetime.utcnow()
         }
         result = db.users.insert_one(user)
@@ -21,6 +24,54 @@ class User:
         return db.users.find_one({'username': username})
     
     @staticmethod
+    def get_by_id(user_id):
+        db = get_db()
+        from bson import ObjectId
+        try:
+            return db.users.find_one({'_id': ObjectId(user_id)})
+        except:
+            return None
+    
+    @staticmethod
+    def get_all():
+        db = get_db()
+        return list(db.users.find().sort('created_at', -1))
+    
+    @staticmethod
+    def get_by_role(role):
+        db = get_db()
+        return list(db.users.find({'role': role}).sort('created_at', -1))
+    
+    @staticmethod
+    def get_by_department(department_id):
+        db = get_db()
+        return list(db.users.find({'department_id': department_id}).sort('created_at', -1))
+    
+    @staticmethod
+    def update(user_id, data):
+        db = get_db()
+        from bson import ObjectId
+        try:
+            data['updated_at'] = datetime.utcnow()
+            result = db.users.update_one(
+                {'_id': ObjectId(user_id)},
+                {'$set': data}
+            )
+            return result.modified_count > 0
+        except:
+            return False
+    
+    @staticmethod
+    def delete(user_id):
+        db = get_db()
+        from bson import ObjectId
+        try:
+            result = db.users.delete_one({'_id': ObjectId(user_id)})
+            return result.deleted_count > 0
+        except:
+            return False
+    
+    @staticmethod
     def verify_password(stored_password, provided_password):
         return bcrypt.checkpw(provided_password.encode('utf-8'), stored_password.encode('utf-8'))
     
@@ -28,5 +79,19 @@ class User:
     def init_default_user():
         db = get_db()
         if not db.users.find_one({'username': 'admin'}):
-            User.create('admin', 'admin123')
+            User.create('admin', 'admin123', 'director')
+    
+    @staticmethod
+    def to_dict(user):
+        if not user:
+            return None
+        user['id'] = str(user['_id'])
+        del user['_id']
+        if 'password' in user:
+            del user['password']
+        if 'created_at' in user:
+            user['created_at'] = user['created_at'].isoformat()
+        if 'updated_at' in user:
+            user['updated_at'] = user['updated_at'].isoformat()
+        return user
 

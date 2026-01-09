@@ -6,7 +6,6 @@ import DocumentList from './pages/DocumentList';
 import Dashboard from './pages/Dashboard';
 import DocumentManagement from './pages/DocumentManagement';
 import UnitManagement from './pages/UnitManagement';
-import SendHistory from './pages/SendHistory';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -52,14 +51,6 @@ function App() {
             element={
               <PrivateRoute>
                 <UnitManagement />
-              </PrivateRoute>
-            } 
-          />
-          <Route 
-            path="/dashboard/history" 
-            element={
-              <PrivateRoute>
-                <SendHistory />
               </PrivateRoute>
             } 
           />

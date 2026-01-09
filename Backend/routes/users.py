@@ -1,0 +1,149 @@
+from flask import Blueprint, request, jsonify
+from models.user import User
+from models.department import Department
+from utils.jwt_helper import jwt_required as auth_required, get_current_user
+
+users_bp = Blueprint('users', __name__)
+
+def require_director():
+    user_id = get_current_user()
+    user = User.get_by_id(user_id)
+    if not user or user.get('role') != 'director':
+        return None
+    return user
+
+@users_bp.route('', methods=['GET'])
+@auth_required
+def get_users():
+    try:
+        user = require_director()
+        if not user:
+            return jsonify({'message': 'Chỉ giám đốc mới có quyền xem danh sách người dùng'}), 403
+        
+        users = User.get_all()
+        result = []
+        for u in users:
+            user_dict = User.to_dict(u)
+            if user_dict.get('department_id'):
+                dept = Department.get_by_id(user_dict['department_id'])
+                if dept:
+                    user_dict['department'] = Department.to_dict(dept)
+            result.append(user_dict)
+        
+        return jsonify({'users': result}), 200
+    except Exception as e:
+        return jsonify({'message': 'Lỗi lấy danh sách người dùng', 'error': str(e)}), 500
+
+@users_bp.route('', methods=['POST'])
+@auth_required
+def create_user():
+    try:
+        user = require_director()
+        if not user:
+            return jsonify({'message': 'Chỉ giám đốc mới có quyền tạo tài khoản'}), 403
+        
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        password = data.get('password', '')
+        role = data.get('role', 'employee')
+        department_id = data.get('department_id')
+        
+        if not username or not password:
+            return jsonify({'message': 'Vui lòng nhập đầy đủ thông tin'}), 400
+        
+        if role not in ['employee', 'department_head']:
+            return jsonify({'message': 'Role không hợp lệ'}), 400
+        
+        if role == 'department_head' and not department_id:
+            return jsonify({'message': 'Trưởng phòng phải có phòng ban'}), 400
+        
+        existing_user = User.get_by_username(username)
+        if existing_user:
+            return jsonify({'message': 'Tên đăng nhập đã tồn tại'}), 400
+        
+        if department_id:
+            dept = Department.get_by_id(department_id)
+            if not dept:
+                return jsonify({'message': 'Phòng ban không tồn tại'}), 400
+        
+        user_id = User.create(username, password, role=role, department_id=department_id, created_by=str(user['_id']))
+        new_user = User.get_by_id(user_id)
+        
+        return jsonify({
+            'message': 'Tạo tài khoản thành công',
+            'user': User.to_dict(new_user)
+        }), 201
+    except Exception as e:
+        return jsonify({'message': 'Lỗi tạo tài khoản', 'error': str(e)}), 500
+
+@users_bp.route('/<user_id>', methods=['PUT'])
+@auth_required
+def update_user(user_id):
+    try:
+        user = require_director()
+        if not user:
+            return jsonify({'message': 'Chỉ giám đốc mới có quyền cập nhật tài khoản'}), 403
+        
+        target_user = User.get_by_id(user_id)
+        if not target_user:
+            return jsonify({'message': 'Không tìm thấy người dùng'}), 404
+        
+        data = request.get_json()
+        update_data = {}
+        
+        if 'role' in data:
+            if data['role'] not in ['employee', 'department_head']:
+                return jsonify({'message': 'Role không hợp lệ'}), 400
+            update_data['role'] = data['role']
+        
+        if 'department_id' in data:
+            dept_id = data['department_id']
+            if dept_id:
+                dept = Department.get_by_id(dept_id)
+                if not dept:
+                    return jsonify({'message': 'Phòng ban không tồn tại'}), 400
+            update_data['department_id'] = dept_id
+        
+        if 'password' in data and data['password']:
+            from models.user import User as UserModel
+            import bcrypt
+            hashed = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
+            update_data['password'] = hashed.decode('utf-8')
+        
+        if update_data:
+            success = User.update(user_id, update_data)
+            if success:
+                updated_user = User.get_by_id(user_id)
+                return jsonify({
+                    'message': 'Cập nhật tài khoản thành công',
+                    'user': User.to_dict(updated_user)
+                }), 200
+            else:
+                return jsonify({'message': 'Cập nhật tài khoản thất bại'}), 400
+        else:
+            return jsonify({'message': 'Không có dữ liệu để cập nhật'}), 400
+    except Exception as e:
+        return jsonify({'message': 'Lỗi cập nhật tài khoản', 'error': str(e)}), 500
+
+@users_bp.route('/<user_id>', methods=['DELETE'])
+@auth_required
+def delete_user(user_id):
+    try:
+        user = require_director()
+        if not user:
+            return jsonify({'message': 'Chỉ giám đốc mới có quyền xóa tài khoản'}), 403
+        
+        target_user = User.get_by_id(user_id)
+        if not target_user:
+            return jsonify({'message': 'Không tìm thấy người dùng'}), 404
+        
+        if str(user['_id']) == user_id:
+            return jsonify({'message': 'Không thể xóa chính mình'}), 400
+        
+        success = User.delete(user_id)
+        if success:
+            return jsonify({'message': 'Xóa tài khoản thành công'}), 200
+        else:
+            return jsonify({'message': 'Xóa tài khoản thất bại'}), 400
+    except Exception as e:
+        return jsonify({'message': 'Lỗi xóa tài khoản', 'error': str(e)}), 500

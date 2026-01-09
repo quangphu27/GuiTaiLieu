@@ -27,7 +27,9 @@ def login():
                 'token': token,
                 'user': {
                     'id': str(user['_id']),
-                    'username': user['username']
+                    'username': user['username'],
+                    'role': user.get('role', 'employee'),
+                    'department_id': str(user.get('department_id')) if user.get('department_id') else None
                 }
             }), 200
         else:
@@ -69,15 +71,18 @@ def register():
                 'errors': errors
             }), 400
         
-        user_id = User.create(username, password)
+        user_id = User.create(username, password, role='employee')
         token = generate_token(user_id)
+        user = User.get_by_id(user_id)
         
         return jsonify({
             'message': 'Đăng ký thành công',
             'token': token,
             'user': {
                 'id': user_id,
-                'username': username
+                'username': username,
+                'role': user.get('role', 'employee'),
+                'department_id': str(user.get('department_id')) if user.get('department_id') else None
             }
         }), 201
     
@@ -91,9 +96,23 @@ def register():
 @auth_bp.route('/verify', methods=['GET'])
 def verify():
     from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+    from models.user import User
     try:
         verify_jwt_in_request()
-        return jsonify({'valid': True, 'user_id': get_jwt_identity()}), 200
+        user_id = get_jwt_identity()
+        user = User.get_by_id(user_id)
+        if user:
+            return jsonify({
+                'valid': True, 
+                'user_id': user_id,
+                'user': {
+                    'id': str(user['_id']),
+                    'username': user['username'],
+                    'role': user.get('role', 'employee'),
+                    'department_id': str(user.get('department_id')) if user.get('department_id') else None
+                }
+            }), 200
+        return jsonify({'valid': False}), 401
     except:
         return jsonify({'valid': False}), 401
 

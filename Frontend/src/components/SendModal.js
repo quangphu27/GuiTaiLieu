@@ -17,10 +17,14 @@ const SendModal = ({ document, onClose, onSendSuccess }) => {
   const [extractedContent, setExtractedContent] = useState(null);
   const [extractedLength, setExtractedLength] = useState(0);
   const [showContentPreview, setShowContentPreview] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const { success, error } = useNotification();
 
   useEffect(() => {
     loadUnits();
+    loadHistory();
   }, [document]);
 
   const loadUnits = async () => {
@@ -91,6 +95,17 @@ const SendModal = ({ document, onClose, onSendSuccess }) => {
     );
   };
 
+  const loadHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const data = await historyAPI.getByDocument(document.id);
+      setHistory(data);
+    } catch (err) {
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   const handleSend = async () => {
     if (selectedUnits.length === 0) {
       error('Vui lòng chọn ít nhất một đơn vị');
@@ -107,6 +122,7 @@ const SendModal = ({ document, onClose, onSendSuccess }) => {
         : `${selectedUnits.length} đơn vị`;
       
       success(`Đã gửi "${document.name}" đến ${unitText}`);
+      await loadHistory();
       onSendSuccess();
     } catch (err) {
       error('Lỗi gửi tài liệu: ' + err.message);
@@ -154,22 +170,82 @@ const SendModal = ({ document, onClose, onSendSuccess }) => {
                 </p>
               )}
             </div>
-            <button 
-              onClick={handleViewContent}
-              style={{
-                padding: '8px 12px',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                marginLeft: 'auto'
-              }}
-            >
-              Xem nội dung đã đọc
-            </button>
+            <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+              <button 
+                onClick={() => setShowHistory(!showHistory)}
+                style={{
+                  padding: '8px 12px',
+                  background: showHistory ? '#48bb78' : '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                {showHistory ? 'Ẩn lịch sử' : 'Lịch sử gửi'}
+              </button>
+              <button 
+                onClick={handleViewContent}
+                style={{
+                  padding: '8px 12px',
+                  background: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                Xem nội dung đã đọc
+              </button>
+            </div>
           </div>
+
+          {showHistory && (
+            <div style={{
+              marginBottom: '16px',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '16px',
+              maxHeight: '300px',
+              overflowY: 'auto'
+            }}>
+              <h4 style={{ marginBottom: '12px', fontSize: '16px', fontWeight: '600' }}>Lịch sử gửi</h4>
+              {loadingHistory ? (
+                <p style={{ textAlign: 'center', color: '#666' }}>Đang tải...</p>
+              ) : history.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#666' }}>Chưa có lịch sử gửi</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {history.map(item => (
+                    <div key={item.id} style={{
+                      padding: '12px',
+                      background: '#f7fafc',
+                      borderRadius: '6px',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontWeight: '500', marginBottom: '4px' }}>{item.unitName}</div>
+                          <div style={{ fontSize: '12px', color: '#666' }}>{item.date}</div>
+                        </div>
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          background: item.status === 'Đã gửi' ? '#c6f6d5' : '#fed7d7',
+                          color: item.status === 'Đã gửi' ? '#22543d' : '#742a2a'
+                        }}>
+                          {item.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {hasSuggestions && suggestedUnits.length > 0 && (
             <div className="ai-suggestion-badge">
