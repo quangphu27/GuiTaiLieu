@@ -14,6 +14,7 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,11 +22,19 @@ export const AuthProvider = ({ children }) => {
       const token = getToken();
       if (token) {
         try {
-          await authAPI.verify();
-          setIsAuthenticated(true);
+          const data = await authAPI.verify();
+          if (data.valid && data.user) {
+            setIsAuthenticated(true);
+            setUser(data.user);
+          } else {
+            removeToken();
+            setIsAuthenticated(false);
+            setUser(null);
+          }
         } catch (error) {
           removeToken();
           setIsAuthenticated(false);
+          setUser(null);
         }
       }
       setLoading(false);
@@ -37,15 +46,18 @@ export const AuthProvider = ({ children }) => {
     try {
       const data = await authAPI.login(username, password);
       setIsAuthenticated(true);
+      setUser(data.user);
       return { success: true, data };
     } catch (error) {
       setIsAuthenticated(false);
+      setUser(null);
       return { success: false, error: error.message };
     }
   };
 
   const logout = () => {
     setIsAuthenticated(false);
+    setUser(null);
     removeToken();
   };
 
@@ -54,7 +66,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

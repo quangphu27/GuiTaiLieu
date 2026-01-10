@@ -348,5 +348,66 @@ export const aiAPI = {
   },
 };
 
+export const usersAPI = {
+  getAll: async () => {
+    const data = await apiRequest('/users');
+    return data.users || [];
+  },
+
+  create: async (userData) => {
+    return await apiRequest('/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  },
+
+  update: async (userId, data) => {
+    return await apiRequest(`/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (userId) => {
+    return await apiRequest(`/users/${userId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  addEmployeeByEmail: async (email, departmentId) => {
+    return await apiRequest('/users/add-by-email', {
+      method: 'POST',
+      body: JSON.stringify({ email, department_id: departmentId }),
+    });
+  },
+};
+
+export const departmentsAPI = {
+  getAll: async () => {
+    const data = await apiRequest('/departments');
+    return data.departments || [];
+  },
+
+  create: async (departmentData) => {
+    return await apiRequest('/departments', {
+      method: 'POST',
+      body: JSON.stringify(departmentData),
+    });
+  },
+
+  update: async (departmentId, data) => {
+    return await apiRequest(`/departments/${departmentId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (departmentId) => {
+    return await apiRequest(`/departments/${departmentId}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 export { getToken, removeToken };
 

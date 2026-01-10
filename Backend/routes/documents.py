@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify, send_file
 from models.document import Document
+from models.user import User
+from config.database import get_db
 from utils.jwt_helper import jwt_required as auth_required, get_current_user
 import os
 from werkzeug.utils import secure_filename
@@ -28,8 +30,36 @@ def get_file_size(size_bytes):
 def get_documents():
     try:
         user_id = get_current_user()
-        documents = Document.get_all_by_user(user_id)
-        result = [Document.to_dict(doc) for doc in documents]
+        current_user = User.get_by_id(user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'Người dùng không tồn tại'}), 401
+        
+        user_role = current_user.get('role', 'employee')
+        user_department_id = current_user.get('department_id')
+        
+        db = get_db()
+        from bson import ObjectId
+        
+        if user_role == 'director':
+            documents = db.documents.find().sort('created_at', -1)
+        elif user_role == 'department_head' and user_department_id:
+            department_user_ids = []
+            dept_users = User.get_by_department(user_department_id)
+            department_user_ids = [str(u['_id']) for u in dept_users]
+            department_user_ids.append(user_id)
+            documents = db.documents.find({'user_id': {'$in': department_user_ids}}).sort('created_at', -1)
+        else:
+            documents = Document.get_all_by_user(user_id)
+        
+        result = []
+        for doc in documents:
+            doc_dict = Document.to_dict(doc)
+            doc_owner = User.get_by_id(doc.get('user_id'))
+            if doc_owner:
+                doc_dict['owner'] = User.to_dict(doc_owner)
+            result.append(doc_dict)
+        
         return jsonify({'documents': result}), 200
     except Exception as e:
         return jsonify({'message': 'Lỗi lấy danh sách tài liệu', 'error': str(e)}), 500
@@ -86,9 +116,29 @@ def upload_document():
 def update_document(doc_id):
     try:
         user_id = get_current_user()
-        document = Document.get_by_id_for_user(doc_id, user_id)
+        current_user = User.get_by_id(user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'Người dùng không tồn tại'}), 401
+        
+        document = Document.get_by_id(doc_id)
         if not document:
             return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
+        
+        user_role = current_user.get('role', 'employee')
+        can_edit = False
+        
+        if user_role == 'director':
+            can_edit = True
+        elif document.get('user_id') == user_id:
+            can_edit = True
+        elif user_role == 'department_head':
+            doc_owner = User.get_by_id(document.get('user_id'))
+            if doc_owner and doc_owner.get('department_id') == current_user.get('department_id'):
+                can_edit = True
+        
+        if not can_edit:
+            return jsonify({'message': 'Bạn không có quyền chỉnh sửa tài liệu này'}), 403
         
         update_data = {}
         old_filepath = document.get('filepath')
@@ -126,9 +176,15 @@ def update_document(doc_id):
                 update_data['name'] = data['name']
         
         if update_data:
-            success = Document.update_for_user(doc_id, user_id, update_data)
-            if success:
-                updated_doc = Document.get_by_id_for_user(doc_id, user_id)
+            db = get_db()
+            from bson import ObjectId
+            update_data['updated_at'] = datetime.utcnow()
+            result = db.documents.update_one(
+                {'_id': ObjectId(doc_id)},
+                {'$set': update_data}
+            )
+            if result.modified_count > 0:
+                updated_doc = Document.get_by_id(doc_id)
                 return jsonify({
                     'message': 'Cập nhật tài liệu thành công',
                     'document': Document.to_dict(updated_doc)
@@ -146,15 +202,37 @@ def update_document(doc_id):
 def delete_document(doc_id):
     try:
         user_id = get_current_user()
-        document = Document.get_by_id_for_user(doc_id, user_id)
+        current_user = User.get_by_id(user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'Người dùng không tồn tại'}), 401
+        
+        document = Document.get_by_id(doc_id)
         if not document:
             return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
+        
+        user_role = current_user.get('role', 'employee')
+        can_delete = False
+        
+        if user_role == 'director':
+            can_delete = True
+        elif document.get('user_id') == user_id:
+            can_delete = True
+        elif user_role == 'department_head':
+            doc_owner = User.get_by_id(document.get('user_id'))
+            if doc_owner and doc_owner.get('department_id') == current_user.get('department_id'):
+                can_delete = True
+        
+        if not can_delete:
+            return jsonify({'message': 'Bạn không có quyền xóa tài liệu này'}), 403
         
         if 'filepath' in document and os.path.exists(document['filepath']):
             os.remove(document['filepath'])
         
-        success = Document.delete_for_user(doc_id, user_id)
-        if success:
+        db = get_db()
+        from bson import ObjectId
+        result = db.documents.delete_one({'_id': ObjectId(doc_id)})
+        if result.deleted_count > 0:
             return jsonify({'message': 'Xóa tài liệu thành công'}), 200
         else:
             return jsonify({'message': 'Xóa tài liệu thất bại'}), 400
@@ -167,9 +245,29 @@ def delete_document(doc_id):
 def download_document(doc_id):
     try:
         user_id = get_current_user()
-        document = Document.get_by_id_for_user(doc_id, user_id)
+        current_user = User.get_by_id(user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'Người dùng không tồn tại'}), 401
+        
+        document = Document.get_by_id(doc_id)
         if not document:
             return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
+        
+        user_role = current_user.get('role', 'employee')
+        can_view = False
+        
+        if user_role == 'director':
+            can_view = True
+        elif document.get('user_id') == user_id:
+            can_view = True
+        elif user_role == 'department_head':
+            doc_owner = User.get_by_id(document.get('user_id'))
+            if doc_owner and doc_owner.get('department_id') == current_user.get('department_id'):
+                can_view = True
+        
+        if not can_view:
+            return jsonify({'message': 'Bạn không có quyền xem tài liệu này'}), 403
         
         filepath = document.get('filepath')
         if not filepath or not os.path.exists(filepath):

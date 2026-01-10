@@ -21,7 +21,14 @@ def get_departments():
             return jsonify({'message': 'Chỉ giám đốc mới có quyền xem danh sách phòng ban'}), 403
         
         departments = Department.get_all()
-        result = [Department.to_dict(dept) for dept in departments]
+        result = []
+        for dept in departments:
+            dept_dict = Department.to_dict(dept)
+            if dept_dict.get('head_id'):
+                head = User.get_by_id(dept_dict['head_id'])
+                if head:
+                    dept_dict['head'] = User.to_dict(head)
+            result.append(dept_dict)
         return jsonify({'departments': result}), 200
     except Exception as e:
         return jsonify({'message': 'Lỗi lấy danh sách phòng ban', 'error': str(e)}), 500
@@ -43,14 +50,27 @@ def create_department():
             'description': data.get('description', '')
         }
         
+        if 'head_id' in data and data['head_id']:
+            head = User.get_by_id(data['head_id'])
+            if not head:
+                return jsonify({'message': 'Trưởng phòng không tồn tại'}), 400
+            if head.get('role') != 'department_head':
+                return jsonify({'message': 'Người dùng này không phải trưởng phòng'}), 400
+            department_data['head_id'] = data['head_id']
+        
         dept_id, error = Department.create(department_data)
         if error:
             return jsonify({'message': error}), 400
         
         department = Department.get_by_id(dept_id)
+        dept_dict = Department.to_dict(department)
+        if dept_dict.get('head_id'):
+            head = User.get_by_id(dept_dict['head_id'])
+            if head:
+                dept_dict['head'] = User.to_dict(head)
         return jsonify({
             'message': 'Tạo phòng ban thành công',
-            'department': Department.to_dict(department)
+            'department': dept_dict
         }), 201
     except Exception as e:
         return jsonify({'message': 'Lỗi tạo phòng ban', 'error': str(e)}), 500
@@ -73,14 +93,29 @@ def update_department(dept_id):
             update_data['name'] = data['name']
         if 'description' in data:
             update_data['description'] = data['description']
+        if 'head_id' in data:
+            if data['head_id']:
+                head = User.get_by_id(data['head_id'])
+                if not head:
+                    return jsonify({'message': 'Trưởng phòng không tồn tại'}), 400
+                if head.get('role') != 'department_head':
+                    return jsonify({'message': 'Người dùng này không phải trưởng phòng'}), 400
+                update_data['head_id'] = data['head_id']
+            else:
+                update_data['head_id'] = None
         
         if update_data:
             success, error_msg = Department.update(dept_id, update_data)
             if success:
                 updated_dept = Department.get_by_id(dept_id)
+                dept_dict = Department.to_dict(updated_dept)
+                if dept_dict.get('head_id'):
+                    head = User.get_by_id(dept_dict['head_id'])
+                    if head:
+                        dept_dict['head'] = User.to_dict(head)
                 return jsonify({
                     'message': 'Cập nhật phòng ban thành công',
-                    'department': Department.to_dict(updated_dept)
+                    'department': dept_dict
                 }), 200
             else:
                 return jsonify({'message': error_msg or 'Cập nhật phòng ban thất bại'}), 400

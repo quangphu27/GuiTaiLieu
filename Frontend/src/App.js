@@ -6,6 +6,8 @@ import DocumentList from './pages/DocumentList';
 import Dashboard from './pages/Dashboard';
 import DocumentManagement from './pages/DocumentManagement';
 import UnitManagement from './pages/UnitManagement';
+import UserManagement from './pages/UserManagement';
+import DepartmentManagement from './pages/DepartmentManagement';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -51,6 +53,22 @@ function App() {
             element={
               <PrivateRoute>
                 <UnitManagement />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard/users" 
+            element={
+              <PrivateRoute>
+                <UserManagement />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard/departments" 
+            element={
+              <PrivateRoute>
+                <DepartmentManagement />
               </PrivateRoute>
             } 
           />

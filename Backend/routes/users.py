@@ -147,3 +147,57 @@ def delete_user(user_id):
             return jsonify({'message': 'Xóa tài khoản thất bại'}), 400
     except Exception as e:
         return jsonify({'message': 'Lỗi xóa tài khoản', 'error': str(e)}), 500
+
+@users_bp.route('/add-by-email', methods=['POST'])
+@auth_required
+def add_employee_by_email():
+    try:
+        current_user_id = get_current_user()
+        current_user = User.get_by_id(current_user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'Người dùng không tồn tại'}), 401
+        
+        if current_user.get('role') != 'department_head':
+            return jsonify({'message': 'Chỉ trưởng phòng mới có quyền thêm nhân viên'}), 403
+        
+        department_id = current_user.get('department_id')
+        if not department_id:
+            return jsonify({'message': 'Trưởng phòng phải có phòng ban'}), 400
+        
+        data = request.get_json()
+        email = data.get('email', '').strip()
+        
+        if not email:
+            return jsonify({'message': 'Vui lòng nhập email'}), 400
+        
+        existing_user = User.get_by_username(email)
+        if existing_user:
+            if existing_user.get('department_id') == department_id:
+                return jsonify({'message': 'Nhân viên này đã thuộc phòng ban của bạn'}), 400
+            
+            success = User.update(str(existing_user['_id']), {'department_id': department_id})
+            if success:
+                updated_user = User.get_by_id(str(existing_user['_id']))
+                return jsonify({
+                    'message': 'Thêm nhân viên vào phòng ban thành công',
+                    'user': User.to_dict(updated_user)
+                }), 200
+            else:
+                return jsonify({'message': 'Cập nhật phòng ban thất bại'}), 400
+        else:
+            import secrets
+            import string
+            password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+            
+            user_id = User.create(email, password, role='employee', department_id=department_id, created_by=str(current_user['_id']))
+            new_user = User.get_by_id(user_id)
+            
+            return jsonify({
+                'message': 'Tạo tài khoản nhân viên thành công',
+                'user': User.to_dict(new_user),
+                'password': password
+            }), 201
+            
+    except Exception as e:
+        return jsonify({'message': 'Lỗi thêm nhân viên', 'error': str(e)}), 500

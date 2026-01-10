@@ -1,10 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
+import { useAuth } from '../context/AuthContext';
 import '../styles/Dashboard.css';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isDirector = user?.role === 'director';
 
   const menuItems = [
     {
@@ -21,7 +24,26 @@ const Dashboard = () => {
       description: 'Quản lý danh sách đơn vị',
       icon: '🏢',
       path: '/dashboard/units',
-      color: '#f093fb'
+      color: '#f093fb',
+      requireDirector: true
+    },
+    {
+      id: 'users',
+      title: 'Quản lý người dùng',
+      description: 'Quản lý người dùng và phòng ban',
+      icon: '👥',
+      path: '/dashboard/users',
+      color: '#ff6b6b',
+      requireDirector: true
+    },
+    {
+      id: 'departments',
+      title: 'Quản lý phòng ban',
+      description: 'Quản lý phòng ban và trưởng phòng',
+      icon: '🏛️',
+      path: '/dashboard/departments',
+      color: '#51cf66',
+      requireDirector: true
     },
     {
       id: 'history',
@@ -33,6 +55,13 @@ const Dashboard = () => {
     },
   ];
 
+  const filteredMenuItems = menuItems.filter(item => {
+    if (item.requireDirector && !isDirector) {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <div className="dashboard-page">
       <Navigation />
@@ -40,7 +69,7 @@ const Dashboard = () => {
       <div className="dashboard-container">
         <h1 className="page-title">Dashboard</h1>
         <div className="dashboard-grid">
-          {menuItems.map(item => (
+          {filteredMenuItems.map(item => (
             <div
               key={item.id}
               className="dashboard-card"
