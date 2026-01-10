@@ -24,8 +24,7 @@ const Dashboard = () => {
       description: 'Quản lý danh sách đơn vị',
       icon: '🏢',
       path: '/dashboard/units',
-      color: '#f093fb',
-      requireDirector: true
+      color: '#f093fb'
     },
     {
       id: 'users',

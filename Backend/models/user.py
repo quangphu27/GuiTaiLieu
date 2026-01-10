@@ -48,7 +48,12 @@ class User:
     @staticmethod
     def get_by_department(department_id):
         db = get_db()
-        return list(db.users.find({'department_id': department_id}).sort('created_at', -1))
+        from bson import ObjectId
+        try:
+            dept_obj_id = ObjectId(department_id) if isinstance(department_id, str) else department_id
+            return list(db.users.find({'department_id': dept_obj_id}).sort('created_at', -1))
+        except:
+            return []
     
     @staticmethod
     def update(user_id, data):

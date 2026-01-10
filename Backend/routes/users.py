@@ -207,32 +207,33 @@ def add_employee_by_email():
             return jsonify({'message': 'Vui lòng nhập email'}), 400
         
         existing_user = User.get_by_username(email)
-        if existing_user:
-            if existing_user.get('department_id') == department_id:
+        if not existing_user:
+            return jsonify({'message': 'Không tìm thấy nhân viên với email này. Email phải là username của một nhân viên đã tồn tại trong hệ thống'}), 404
+        
+        if existing_user.get('role') != 'employee':
+            return jsonify({'message': 'Người dùng này không phải là nhân viên'}), 400
+        
+        existing_dept_id = existing_user.get('department_id')
+        from models.department import Department
+        from bson import ObjectId
+        
+        if existing_dept_id:
+            if str(existing_dept_id) == str(department_id):
                 return jsonify({'message': 'Nhân viên này đã thuộc phòng ban của bạn'}), 400
             
-            success = User.update(str(existing_user['_id']), {'department_id': department_id})
-            if success:
-                updated_user = User.get_by_id(str(existing_user['_id']))
-                return jsonify({
-                    'message': 'Thêm nhân viên vào phòng ban thành công',
-                    'user': User.to_dict(updated_user)
-                }), 200
-            else:
-                return jsonify({'message': 'Cập nhật phòng ban thất bại'}), 400
-        else:
-            import secrets
-            import string
-            password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
-            
-            user_id = User.create(email, password, role='employee', department_id=department_id, created_by=str(current_user['_id']), name=None, birth_date=None, phone=None)
-            new_user = User.get_by_id(user_id)
-            
+            old_dept = Department.get_by_id(existing_dept_id)
+            old_dept_name = old_dept.get('name', 'phòng ban khác') if old_dept else 'phòng ban khác'
+            return jsonify({'message': f'Nhân viên này đã thuộc {old_dept_name}. Vui lòng xóa nhân viên khỏi phòng ban cũ trước'}), 400
+        
+        success = User.update(str(existing_user['_id']), {'department_id': department_id})
+        if success:
+            updated_user = User.get_by_id(str(existing_user['_id']))
             return jsonify({
-                'message': 'Tạo tài khoản nhân viên thành công',
-                'user': User.to_dict(new_user),
-                'password': password
-            }), 201
+                'message': 'Thêm nhân viên vào phòng ban thành công',
+                'user': User.to_dict(updated_user)
+            }), 200
+        else:
+            return jsonify({'message': 'Cập nhật phòng ban thất bại'}), 400
             
     except Exception as e:
         return jsonify({'message': 'Lỗi thêm nhân viên', 'error': str(e)}), 500

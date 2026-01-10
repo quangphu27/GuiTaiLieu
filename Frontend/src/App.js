@@ -8,6 +8,7 @@ import UnitManagement from './pages/UnitManagement';
 import UserManagement from './pages/UserManagement';
 import DepartmentManagement from './pages/DepartmentManagement';
 import DepartmentEmployeeManagement from './pages/DepartmentEmployeeManagement';
+import SendHistory from './pages/SendHistory';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -69,6 +70,14 @@ function App() {
             element={
               <PrivateRoute>
                 <DepartmentEmployeeManagement />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard/history" 
+            element={
+              <PrivateRoute>
+                <SendHistory />
               </PrivateRoute>
             } 
           />

@@ -13,6 +13,14 @@ def send_email(to_email, subject, body, attachment_path=None, attachment_name=No
         email_user = os.getenv("EMAIL_USER")
         email_password = os.getenv("EMAIL_PASSWORD")
 
+        if not email_user or not email_password:
+            print("ERROR: EMAIL_USER hoặc EMAIL_PASSWORD chưa được cấu hình trong .env file")
+            return False
+
+        if not to_email:
+            print(f"ERROR: Email người nhận không hợp lệ: {to_email}")
+            return False
+
         msg = EmailMessage(policy=SMTPUTF8)
 
         msg["From"] = formataddr((str(Header("Hệ thống gửi tài liệu", "utf-8")), email_user))
@@ -33,16 +41,32 @@ def send_email(to_email, subject, body, attachment_path=None, attachment_name=No
                 subtype="octet-stream",
                 filename=("utf-8", "", filename)
             )
+        elif attachment_path:
+            print(f"WARNING: File đính kèm không tồn tại: {attachment_path}")
 
-        server = smtplib.SMTP("smtp.gmail.com", 587, local_hostname="localhost")
+        print(f"INFO: Đang gửi email đến {to_email}...")
+        server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
         server.login(email_user, email_password)
         server.send_message(msg)
         server.quit()
+        print(f"SUCCESS: Đã gửi email thành công đến {to_email}")
 
         return True
 
-    except:
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"ERROR: Xác thực email thất bại: {str(e)}")
+        return False
+    except smtplib.SMTPRecipientsRefused as e:
+        print(f"ERROR: Email người nhận không hợp lệ: {str(e)}")
+        return False
+    except smtplib.SMTPServerDisconnected as e:
+        print(f"ERROR: Mất kết nối với SMTP server: {str(e)}")
+        return False
+    except Exception as e:
+        print(f"ERROR: Lỗi gửi email: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
