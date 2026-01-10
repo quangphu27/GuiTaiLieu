@@ -6,7 +6,8 @@ import '../styles/Navigation.css';
 const Navigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const isDirector = user?.role === 'director';
 
   const handleLogout = () => {
     logout();
@@ -44,7 +45,31 @@ const Navigation = () => {
           <path d="M10 10C12.7614 10 15 7.76142 15 5C15 2.23858 12.7614 0 10 0C7.23858 0 5 2.23858 5 5C5 7.76142 7.23858 10 10 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           <path d="M0 18C0 14.6863 2.68629 12 6 12H14C17.3137 12 20 14.6863 20 18V20H0V18Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-      )
+      ),
+      requireDirector: true
+    },
+    {
+      path: '/dashboard/users',
+      label: 'Quản lý người dùng',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 10C12.7614 10 15 7.76142 15 5C15 2.23858 12.7614 0 10 0C7.23858 0 5 2.23858 5 5C5 7.76142 7.23858 10 10 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M0 18C0 14.6863 2.68629 12 6 12H14C17.3137 12 20 14.6863 20 18V20H0V18Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="15" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+        </svg>
+      ),
+      requireDirector: true
+    },
+    {
+      path: '/dashboard/departments',
+      label: 'Quản lý phòng ban',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <rect x="3" y="4" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="2"/>
+          <path d="M3 8H17M7 4V20M13 4V20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      ),
+      requireDirector: true
     },
   ];
 
@@ -74,7 +99,12 @@ const Navigation = () => {
         </div>
 
         <div className="nav-menu">
-          {menuItems.map(item => (
+          {menuItems.filter(item => {
+            if (item.requireDirector && !isDirector) {
+              return false;
+            }
+            return true;
+          }).map(item => (
             <button
               key={item.path}
               className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
