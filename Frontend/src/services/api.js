@@ -380,6 +380,24 @@ export const usersAPI = {
       body: JSON.stringify({ email, department_id: departmentId }),
     });
   },
+
+  getDepartmentEmployees: async () => {
+    const data = await apiRequest('/users/department-employees');
+    return data.employees || [];
+  },
+
+  updateDepartmentEmployee: async (employeeId, data) => {
+    return await apiRequest(`/users/department-employees/${employeeId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteDepartmentEmployee: async (employeeId) => {
+    return await apiRequest(`/users/department-employees/${employeeId}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 export const departmentsAPI = {

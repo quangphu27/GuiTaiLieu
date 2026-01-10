@@ -64,15 +64,44 @@ def get_history_detail(history_id):
 def get_history_by_document(doc_id):
     try:
         user_id = get_current_user()
-        history_list = History.get_by_document_id_for_user(doc_id, user_id)
-        result = []
+        current_user = User.get_by_id(user_id)
         
+        if not current_user:
+            return jsonify({'message': 'Người dùng không tồn tại'}), 401
+        
+        document = Document.get_by_id(doc_id)
+        if not document:
+            return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
+        
+        user_role = current_user.get('role', 'employee')
+        user_department_id = current_user.get('department_id')
+        
+        from bson import ObjectId
+        db = get_db()
+        
+        if user_role == 'director':
+            history_list = History.get_by_document_id(doc_id)
+        elif user_role == 'department_head' and user_department_id:
+            doc_owner = User.get_by_id(document.get('user_id'))
+            if doc_owner and doc_owner.get('department_id') and str(doc_owner.get('department_id')) == str(user_department_id):
+                history_list = History.get_by_document_id(doc_id)
+            elif document.get('user_id') == user_id:
+                history_list = History.get_by_document_id(doc_id)
+            else:
+                history_list = []
+        else:
+            if document.get('user_id') == user_id:
+                history_list = History.get_by_document_id(doc_id)
+            else:
+                history_list = []
+        
+        result = []
         for item in history_list:
             history_dict = History.to_dict(item)
-            document = Document.get_by_id_for_user(item.get('document_id'), user_id)
-            unit = Unit.get_by_id_for_user(item.get('unit_id'), user_id)
+            doc_item = Document.get_by_id(item.get('document_id'))
+            unit = Unit.get_by_id(item.get('unit_id'))
             
-            history_dict['documentName'] = document.get('name', 'Tài liệu đã bị xóa') if document else 'Tài liệu đã bị xóa'
+            history_dict['documentName'] = doc_item.get('name', 'Tài liệu đã bị xóa') if doc_item else 'Tài liệu đã bị xóa'
             history_dict['unitName'] = unit.get('name', 'Đơn vị đã bị xóa') if unit else 'Đơn vị đã bị xóa'
             history_dict['document_id'] = item.get('document_id')
             history_dict['unit_id'] = item.get('unit_id')

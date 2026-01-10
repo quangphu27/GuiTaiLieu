@@ -47,6 +47,9 @@ def create_user():
         password = data.get('password', '')
         role = data.get('role', 'employee')
         department_id = data.get('department_id')
+        name = data.get('name', '').strip()
+        birth_date = data.get('birth_date')
+        phone = data.get('phone', '').strip()
         
         if not username or not password:
             return jsonify({'message': 'Vui lòng nhập đầy đủ thông tin'}), 400
@@ -66,7 +69,18 @@ def create_user():
             if not dept:
                 return jsonify({'message': 'Phòng ban không tồn tại'}), 400
         
-        user_id = User.create(username, password, role=role, department_id=department_id, created_by=str(user['_id']))
+        from datetime import datetime as dt
+        parsed_birth_date = None
+        if birth_date:
+            try:
+                parsed_birth_date = dt.fromisoformat(birth_date.replace('Z', '+00:00'))
+            except:
+                try:
+                    parsed_birth_date = dt.strptime(birth_date, '%Y-%m-%d')
+                except:
+                    pass
+        
+        user_id = User.create(username, password, role=role, department_id=department_id, created_by=str(user['_id']), name=name, birth_date=parsed_birth_date, phone=phone)
         new_user = User.get_by_id(user_id)
         
         return jsonify({
@@ -109,6 +123,27 @@ def update_user(user_id):
             import bcrypt
             hashed = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
             update_data['password'] = hashed.decode('utf-8')
+        
+        if 'name' in data:
+            update_data['name'] = data['name'].strip() if data['name'] else None
+        
+        if 'birth_date' in data:
+            if data['birth_date']:
+                from datetime import datetime as dt
+                try:
+                    parsed_birth_date = dt.fromisoformat(data['birth_date'].replace('Z', '+00:00'))
+                    update_data['birth_date'] = parsed_birth_date
+                except:
+                    try:
+                        parsed_birth_date = dt.strptime(data['birth_date'], '%Y-%m-%d')
+                        update_data['birth_date'] = parsed_birth_date
+                    except:
+                        pass
+            else:
+                update_data['birth_date'] = None
+        
+        if 'phone' in data:
+            update_data['phone'] = data['phone'].strip() if data['phone'] else None
         
         if update_data:
             success = User.update(user_id, update_data)
@@ -190,7 +225,7 @@ def add_employee_by_email():
             import string
             password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
             
-            user_id = User.create(email, password, role='employee', department_id=department_id, created_by=str(current_user['_id']))
+            user_id = User.create(email, password, role='employee', department_id=department_id, created_by=str(current_user['_id']), name=None, birth_date=None, phone=None)
             new_user = User.get_by_id(user_id)
             
             return jsonify({
@@ -201,3 +236,131 @@ def add_employee_by_email():
             
     except Exception as e:
         return jsonify({'message': 'Lỗi thêm nhân viên', 'error': str(e)}), 500
+
+@users_bp.route('/department-employees', methods=['GET'])
+@auth_required
+def get_department_employees():
+    try:
+        current_user_id = get_current_user()
+        current_user = User.get_by_id(current_user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'Người dùng không tồn tại'}), 401
+        
+        if current_user.get('role') != 'department_head':
+            return jsonify({'message': 'Chỉ trưởng phòng mới có quyền xem danh sách nhân viên'}), 403
+        
+        department_id = current_user.get('department_id')
+        if not department_id:
+            return jsonify({'message': 'Trưởng phòng phải có phòng ban'}), 400
+        
+        employees = User.get_by_department(department_id)
+        result = []
+        for emp in employees:
+            if emp.get('role') == 'employee':
+                emp_dict = User.to_dict(emp)
+                result.append(emp_dict)
+        
+        return jsonify({'employees': result}), 200
+    except Exception as e:
+        return jsonify({'message': 'Lỗi lấy danh sách nhân viên', 'error': str(e)}), 500
+
+@users_bp.route('/department-employees/<employee_id>', methods=['PUT'])
+@auth_required
+def update_department_employee(employee_id):
+    try:
+        current_user_id = get_current_user()
+        current_user = User.get_by_id(current_user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'Người dùng không tồn tại'}), 401
+        
+        if current_user.get('role') != 'department_head':
+            return jsonify({'message': 'Chỉ trưởng phòng mới có quyền cập nhật nhân viên'}), 403
+        
+        department_id = current_user.get('department_id')
+        if not department_id:
+            return jsonify({'message': 'Trưởng phòng phải có phòng ban'}), 400
+        
+        target_user = User.get_by_id(employee_id)
+        if not target_user:
+            return jsonify({'message': 'Không tìm thấy nhân viên'}), 404
+        
+        if target_user.get('department_id') != department_id or target_user.get('role') != 'employee':
+            return jsonify({'message': 'Bạn chỉ có quyền quản lý nhân viên trong phòng ban của mình'}), 403
+        
+        data = request.get_json()
+        update_data = {}
+        
+        if 'name' in data:
+            update_data['name'] = data['name'].strip() if data['name'] else None
+        
+        if 'birth_date' in data:
+            if data['birth_date']:
+                from datetime import datetime as dt
+                try:
+                    parsed_birth_date = dt.fromisoformat(data['birth_date'].replace('Z', '+00:00'))
+                    update_data['birth_date'] = parsed_birth_date
+                except:
+                    try:
+                        parsed_birth_date = dt.strptime(data['birth_date'], '%Y-%m-%d')
+                        update_data['birth_date'] = parsed_birth_date
+                    except:
+                        pass
+            else:
+                update_data['birth_date'] = None
+        
+        if 'phone' in data:
+            update_data['phone'] = data['phone'].strip() if data['phone'] else None
+        
+        if 'password' in data and data['password']:
+            import bcrypt
+            hashed = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
+            update_data['password'] = hashed.decode('utf-8')
+        
+        if update_data:
+            success = User.update(employee_id, update_data)
+            if success:
+                updated_user = User.get_by_id(employee_id)
+                return jsonify({
+                    'message': 'Cập nhật nhân viên thành công',
+                    'user': User.to_dict(updated_user)
+                }), 200
+            else:
+                return jsonify({'message': 'Cập nhật nhân viên thất bại'}), 400
+        else:
+            return jsonify({'message': 'Không có dữ liệu để cập nhật'}), 400
+    except Exception as e:
+        return jsonify({'message': 'Lỗi cập nhật nhân viên', 'error': str(e)}), 500
+
+@users_bp.route('/department-employees/<employee_id>', methods=['DELETE'])
+@auth_required
+def delete_department_employee(employee_id):
+    try:
+        current_user_id = get_current_user()
+        current_user = User.get_by_id(current_user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'Người dùng không tồn tại'}), 401
+        
+        if current_user.get('role') != 'department_head':
+            return jsonify({'message': 'Chỉ trưởng phòng mới có quyền xóa nhân viên'}), 403
+        
+        department_id = current_user.get('department_id')
+        if not department_id:
+            return jsonify({'message': 'Trưởng phòng phải có phòng ban'}), 400
+        
+        target_user = User.get_by_id(employee_id)
+        if not target_user:
+            return jsonify({'message': 'Không tìm thấy nhân viên'}), 404
+        
+        if target_user.get('department_id') != department_id or target_user.get('role') != 'employee':
+            return jsonify({'message': 'Bạn chỉ có quyền xóa nhân viên trong phòng ban của mình'}), 403
+        
+        success = User.update(employee_id, {'department_id': None})
+        if success:
+            return jsonify({'message': 'Xóa nhân viên khỏi phòng ban thành công'}), 200
+        else:
+            return jsonify({'message': 'Xóa nhân viên thất bại'}), 400
+    except Exception as e:
+        return jsonify({'message': 'Lỗi xóa nhân viên', 'error': str(e)}), 500

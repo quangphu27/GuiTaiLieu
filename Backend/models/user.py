@@ -4,7 +4,7 @@ import bcrypt
 
 class User:
     @staticmethod
-    def create(username, password, role='employee', department_id=None, created_by=None):
+    def create(username, password, role='employee', department_id=None, created_by=None, name=None, birth_date=None, phone=None):
         db = get_db()
         hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         user = {
@@ -13,6 +13,9 @@ class User:
             'role': role,
             'department_id': department_id,
             'created_by': created_by,
+            'name': name,
+            'birth_date': birth_date,
+            'phone': phone,
             'created_at': datetime.utcnow()
         }
         result = db.users.insert_one(user)
@@ -93,5 +96,10 @@ class User:
             user['created_at'] = user['created_at'].isoformat()
         if 'updated_at' in user:
             user['updated_at'] = user['updated_at'].isoformat()
+        if 'birth_date' in user and user['birth_date']:
+            if isinstance(user['birth_date'], datetime):
+                user['birth_date'] = user['birth_date'].isoformat()
+            elif isinstance(user['birth_date'], str):
+                pass
         return user
 

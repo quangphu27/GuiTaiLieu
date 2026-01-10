@@ -8,6 +8,7 @@ import DocumentManagement from './pages/DocumentManagement';
 import UnitManagement from './pages/UnitManagement';
 import UserManagement from './pages/UserManagement';
 import DepartmentManagement from './pages/DepartmentManagement';
+import DepartmentEmployeeManagement from './pages/DepartmentEmployeeManagement';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -69,6 +70,14 @@ function App() {
             element={
               <PrivateRoute>
                 <DepartmentManagement />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard/department-employees" 
+            element={
+              <PrivateRoute>
+                <DepartmentEmployeeManagement />
               </PrivateRoute>
             } 
           />

@@ -19,13 +19,19 @@ const UserManagement = () => {
     username: '',
     password: '',
     role: 'employee',
-    department_id: ''
+    department_id: '',
+    name: '',
+    birth_date: '',
+    phone: ''
   });
   const [editUser, setEditUser] = useState({
     username: '',
     password: '',
     role: 'employee',
-    department_id: ''
+    department_id: '',
+    name: '',
+    birth_date: '',
+    phone: ''
   });
   const [updating, setUpdating] = useState(false);
   const { success, error } = useNotification();
@@ -51,8 +57,11 @@ const UserManagement = () => {
   };
 
   const filteredUsers = users.filter(u => {
+    const searchLower = searchTerm.toLowerCase();
     const matchesSearch = 
-      u.username.toLowerCase().includes(searchTerm.toLowerCase());
+      u.username.toLowerCase().includes(searchLower) ||
+      (u.name && u.name.toLowerCase().includes(searchLower)) ||
+      (u.phone && u.phone.includes(searchTerm));
     const matchesRole = filterRole === 'all' || u.role === filterRole;
     return matchesSearch && matchesRole;
   });
@@ -87,7 +96,10 @@ const UserManagement = () => {
         username: '',
         password: '',
         role: 'employee',
-        department_id: ''
+        department_id: '',
+        name: '',
+        birth_date: '',
+        phone: ''
       });
       setIsAddModalOpen(false);
       loadData();
@@ -102,7 +114,10 @@ const UserManagement = () => {
       username: '',
       password: '',
       role: 'employee',
-      department_id: ''
+      department_id: '',
+      name: '',
+      birth_date: '',
+      phone: ''
     });
   };
 
@@ -112,7 +127,10 @@ const UserManagement = () => {
       username: user.username,
       password: '',
       role: user.role,
-      department_id: user.department_id || ''
+      department_id: user.department_id || '',
+      name: user.name || '',
+      birth_date: user.birth_date ? user.birth_date.split('T')[0] : '',
+      phone: user.phone || ''
     });
     setIsEditModalOpen(true);
   };
@@ -142,7 +160,10 @@ const UserManagement = () => {
         username: '',
         password: '',
         role: 'employee',
-        department_id: ''
+        department_id: '',
+        name: '',
+        birth_date: '',
+        phone: ''
       });
       loadData();
     } catch (err) {
@@ -159,7 +180,10 @@ const UserManagement = () => {
       username: '',
       password: '',
       role: 'employee',
-      department_id: ''
+      department_id: '',
+      name: '',
+      birth_date: '',
+      phone: ''
     });
   };
 
@@ -278,10 +302,44 @@ const UserManagement = () => {
                   )}
                 </div>
               </div>
-              <div className="unit-content">
-                <h3>{user.username}</h3>
+                <div className="unit-content">
+                <h3>{user.name || user.username}</h3>
                 <div className="unit-code">{getRoleLabel(user.role)}</div>
                 <div className="unit-details">
+                  <div className="detail-item">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M8 2C9.10457 2 10 2.89543 10 4C10 5.10457 9.10457 6 8 6C6.89543 6 6 5.10457 6 4C6 2.89543 6.89543 2 8 2Z" stroke="currentColor" strokeWidth="1.5"/>
+                      <path d="M4 14C4 11.7909 5.79086 10 8 10C10.2091 10 12 11.7909 12 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                    <span>{user.username}</span>
+                  </div>
+                  {user.name && (
+                    <div className="detail-item">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8Z" stroke="currentColor" strokeWidth="1.5"/>
+                        <path d="M2 16C2 13.7909 3.79086 12 6 12H10C12.2091 12 14 13.7909 14 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                      <span>{user.name}</span>
+                    </div>
+                  )}
+                  {user.birth_date && (
+                    <div className="detail-item">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                        <path d="M2 6H14M5 2V3M11 2V3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                      <span>{new Date(user.birth_date).toLocaleDateString('vi-VN')}</span>
+                    </div>
+                  )}
+                  {user.phone && (
+                    <div className="detail-item">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 2C2.44772 2 2 2.44772 2 3V13C2 13.5523 2.44772 14 3 14H13C13.5523 14 14 13.5523 14 13V3C14 2.44772 13.5523 2 13 2H3Z" stroke="currentColor" strokeWidth="1.5"/>
+                        <path d="M5 5H11M5 8H11M5 11H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                      <span>{user.phone}</span>
+                    </div>
+                  )}
                   <div className="detail-item">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                       <path d="M8 9C9.65685 9 11 7.65685 11 6C11 4.34315 9.65685 3 8 3C6.34315 3 5 4.34315 5 6C5 7.65685 6.34315 9 8 9Z" stroke="currentColor" strokeWidth="1.5"/>
@@ -333,6 +391,36 @@ const UserManagement = () => {
                   id="user-password"
                   value={newUser.password}
                   onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="user-name">Họ và tên</label>
+                <input
+                  type="text"
+                  id="user-name"
+                  value={newUser.name}
+                  onChange={(e) => setNewUser({...newUser, name: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="user-birth-date">Ngày sinh</label>
+                <input
+                  type="date"
+                  id="user-birth-date"
+                  value={newUser.birth_date}
+                  onChange={(e) => setNewUser({...newUser, birth_date: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="user-phone">Số điện thoại</label>
+                <input
+                  type="tel"
+                  id="user-phone"
+                  value={newUser.phone}
+                  onChange={(e) => setNewUser({...newUser, phone: e.target.value})}
                 />
               </div>
 
@@ -424,6 +512,36 @@ const UserManagement = () => {
                   id="edit-user-password"
                   value={editUser.password}
                   onChange={(e) => setEditUser({...editUser, password: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="edit-user-name">Họ và tên</label>
+                <input
+                  type="text"
+                  id="edit-user-name"
+                  value={editUser.name}
+                  onChange={(e) => setEditUser({...editUser, name: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="edit-user-birth-date">Ngày sinh</label>
+                <input
+                  type="date"
+                  id="edit-user-birth-date"
+                  value={editUser.birth_date}
+                  onChange={(e) => setEditUser({...editUser, birth_date: e.target.value})}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="edit-user-phone">Số điện thoại</label>
+                <input
+                  type="tel"
+                  id="edit-user-phone"
+                  value={editUser.phone}
+                  onChange={(e) => setEditUser({...editUser, phone: e.target.value})}
                 />
               </div>
 
