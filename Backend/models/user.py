@@ -110,18 +110,25 @@ class User:
     def to_dict(user):
         if not user:
             return None
-        user['id'] = str(user['_id'])
-        del user['_id']
-        if 'password' in user:
-            del user['password']
-        if 'created_at' in user:
-            user['created_at'] = user['created_at'].isoformat()
-        if 'updated_at' in user:
-            user['updated_at'] = user['updated_at'].isoformat()
-        if 'birth_date' in user and user['birth_date']:
-            if isinstance(user['birth_date'], datetime):
-                user['birth_date'] = user['birth_date'].isoformat()
-            elif isinstance(user['birth_date'], str):
+        user_dict = dict(user)
+        user_dict['id'] = str(user_dict['_id'])
+        del user_dict['_id']
+        if 'password' in user_dict:
+            del user_dict['password']
+        if 'created_at' in user_dict and user_dict['created_at']:
+            if isinstance(user_dict['created_at'], datetime):
+                user_dict['created_at'] = user_dict['created_at'].isoformat()
+        if 'updated_at' in user_dict and user_dict['updated_at']:
+            if isinstance(user_dict['updated_at'], datetime):
+                user_dict['updated_at'] = user_dict['updated_at'].isoformat()
+        if 'birth_date' in user_dict and user_dict['birth_date']:
+            if isinstance(user_dict['birth_date'], datetime):
+                user_dict['birth_date'] = user_dict['birth_date'].isoformat()
+            elif isinstance(user_dict['birth_date'], str):
                 pass
-        return user
+        if 'department_id' in user_dict and user_dict['department_id']:
+            user_dict['department_id'] = str(user_dict['department_id'])
+        if 'created_by' in user_dict and user_dict['created_by']:
+            user_dict['created_by'] = str(user_dict['created_by'])
+        return user_dict
 

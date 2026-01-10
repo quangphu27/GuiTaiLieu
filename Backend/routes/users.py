@@ -42,7 +42,7 @@ def create_user():
         if not user:
             return jsonify({'message': 'Chỉ giám đốc mới có quyền tạo tài khoản'}), 403
         
-        data = request.get_json()
+        data = request.get_json() or {}
         username = data.get('username', '').strip()
         password = data.get('password', '')
         role = data.get('role', 'employee')
@@ -80,7 +80,8 @@ def create_user():
                 except:
                     pass
         
-        user_id = User.create(username, password, role=role, department_id=department_id, created_by=str(user['_id']), name=name, birth_date=parsed_birth_date, phone=phone)
+        created_by_id = str(user.get('_id', '')) if user.get('_id') else None
+        user_id = User.create(username, password, role=role, department_id=department_id, created_by=created_by_id, name=name, birth_date=parsed_birth_date, phone=phone)
         new_user = User.get_by_id(user_id)
         
         return jsonify({
