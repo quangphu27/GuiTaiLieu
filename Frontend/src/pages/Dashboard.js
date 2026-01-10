@@ -54,15 +54,6 @@ const Dashboard = () => {
       color: '#51cf66',
       requireDirector: true
     },
-    {
-      id: 'history',
-      title: 'Lịch sử gửi',
-      description: 'Xem lịch sử gửi tài liệu',
-      icon: '📋',
-      path: '/dashboard/history',
-      color: '#4facfe',
-      requireDirector: true
-    },
   ];
 
   const filteredMenuItems = menuItems.filter(item => {

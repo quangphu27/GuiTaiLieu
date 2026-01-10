@@ -36,7 +36,7 @@ app.register_blueprint(departments_bp, url_prefix='/api/departments')
 app.register_blueprint(users_bp, url_prefix='/api/users')
 
 init_db()
-User.init_default_user()
+#User.init_default_user()
 
 if not os.path.exists('uploads'):
     os.makedirs('uploads')
