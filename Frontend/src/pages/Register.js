@@ -53,7 +53,7 @@ const Register = () => {
       if (result.token) {
         await login(username, password);
         success('Đăng ký thành công');
-        navigate('/documents');
+        navigate('/dashboard');
       }
     } catch (err) {
       if (err.errors) {

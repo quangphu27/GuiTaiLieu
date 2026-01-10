@@ -7,6 +7,8 @@ from models.department import Department
 from config.database import get_db
 from utils.jwt_helper import jwt_required as auth_required, get_current_user
 from utils.email_service import send_document_email
+from bson import ObjectId
+import os
 
 history_bp = Blueprint('history', __name__)
 
@@ -39,7 +41,6 @@ def get_history():
 def get_history_detail(history_id):
     try:
         user_id = get_current_user()
-        from bson import ObjectId
         db = get_db()
         history_item = db.history.find_one({'_id': ObjectId(history_id), 'user_id': user_id})
         
@@ -76,7 +77,6 @@ def get_history_by_document(doc_id):
         user_role = current_user.get('role', 'employee')
         user_department_id = current_user.get('department_id')
         
-        from bson import ObjectId
         db = get_db()
         
         if user_role == 'director':
@@ -131,36 +131,44 @@ def send_document():
         if not document_id or not unit_ids:
             return jsonify({'message': 'Vui lòng chọn tài liệu và đơn vị nhận'}), 400
         
-        document = Document.get_by_id_for_user(document_id, user_id)
+        document = Document.get_by_id(document_id)
         if not document:
             return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
         
+        can_access_doc = False
+        if user_role == 'director':
+            can_access_doc = True
+        elif user_role == 'department_head' and user_department_id:
+            if document.get('department_id') and str(document.get('department_id')) == str(user_department_id):
+                can_access_doc = True
+        elif user_role == 'employee':
+            if document.get('user_id') == user_id:
+                can_access_doc = True
+            elif user_department_id and document.get('department_id') and str(document.get('department_id')) == str(user_department_id):
+                can_access_doc = True
+        
+        if not can_access_doc:
+            return jsonify({'message': 'Bạn không có quyền truy cập tài liệu này'}), 403
+        
         if user_role == 'director':
             all_units = Unit.get_by_ids(unit_ids)
+        elif user_role == 'department_head' or user_role == 'employee':
+            if not user_department_id:
+                if user_role == 'employee':
+                    all_units = Unit.get_by_ids_for_user(unit_ids, user_id)
+                else:
+                    all_units = []
+            else:
+                all_units_list = Unit.get_by_ids(unit_ids)
+                all_units = [u for u in all_units_list if u.get('department_id') and str(u.get('department_id')) == str(user_department_id)]
         else:
             all_units = Unit.get_by_ids_for_user(unit_ids, user_id)
         
         if not all_units:
-            return jsonify({'message': 'Không tìm thấy đơn vị'}), 404
+            return jsonify({'message': 'Không tìm thấy đơn vị hoặc bạn không có quyền truy cập các đơn vị này'}), 404
         
-        if user_role == 'department_head':
-            if not user_department_id:
-                return jsonify({'message': 'Bạn chưa được phân công phòng ban'}), 403
-            
-            units = []
-            for unit in all_units:
-                unit_dept_id = unit.get('department_id')
-                if unit_dept_id and str(unit_dept_id) == str(user_department_id):
-                    units.append(unit)
-            
-            if len(units) != len(unit_ids):
-                return jsonify({'message': 'Bạn chỉ có thể gửi tài liệu cho các đơn vị trong phòng ban của mình'}), 403
-        elif user_role == 'director':
-            units = all_units
-        else:
-            return jsonify({'message': 'Bạn không có quyền gửi tài liệu'}), 403
+        units = all_units
         
-        import os
         success_count = 0
         failed_count = 0
         failed_units = []
@@ -175,7 +183,6 @@ def send_document():
             }), 404
         
         for unit in units:
-            from bson import ObjectId
             unit_id = str(unit.get('_id', ''))
             unit_email = unit.get('email', '')
             unit_name = unit.get('name', '')

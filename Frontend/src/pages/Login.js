@@ -20,7 +20,7 @@ const Login = () => {
     
     if (result.success) {
       success('Đăng nhập thành công');
-      navigate('/documents');
+      navigate('/dashboard');
     } else {
       error(result.error || 'Đăng nhập thất bại');
     }
