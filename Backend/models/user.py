@@ -100,11 +100,11 @@ class User:
     def verify_password(stored_password, provided_password):
         return bcrypt.checkpw(provided_password.encode('utf-8'), stored_password.encode('utf-8'))
     
-    @staticmethod
-    def init_default_user():
-        db = get_db()
-        if not db.users.find_one({'username': 'admin'}):
-            User.create('admin', 'admin123', 'director')
+    # @staticmethod
+    # def init_default_user():
+    #     db = get_db()
+    #     if not db.users.find_one({'username': 'admin'}):
+    #         User.create('admin', 'admin123', 'director')
     
     @staticmethod
     def to_dict(user):

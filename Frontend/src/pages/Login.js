@@ -88,14 +88,6 @@ const Login = () => {
               )}
             </button>
 
-            <div style={{ marginTop: '20px', textAlign: 'center' }}>
-              <p style={{ color: '#718096', fontSize: '14px' }}>
-                Chưa có tài khoản?{' '}
-                <Link to="/register" style={{ color: '#667eea', textDecoration: 'none', fontWeight: '600' }}>
-                  Đăng ký ngay
-                </Link>
-              </p>
-            </div>
           </form>
         </div>
       </div>

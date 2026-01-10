@@ -45,7 +45,7 @@ def send_email(to_email, subject, body, attachment_path=None, attachment_name=No
             print(f"WARNING: File đính kèm không tồn tại: {attachment_path}")
 
         print(f"INFO: Đang gửi email đến {to_email}...")
-        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server = smtplib.SMTP("smtp.gmail.com", 587, local_hostname="localhost")
         server.starttls()
         server.login(email_user, email_password)
         server.send_message(msg)
