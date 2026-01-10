@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Navigation from '../components/Navigation';
 import SendModal from '../components/SendModal';
 import { useNotification } from '../context/NotificationContext';
-import { documentsAPI } from '../services/api';
+import { documentsAPI, historyAPI } from '../services/api';
 import '../styles/DocumentManagement.css';
 
 const DocumentManagement = () => {
@@ -14,6 +14,9 @@ const DocumentManagement = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [documentHistory, setDocumentHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingDocument, setEditingDocument] = useState(null);
@@ -88,6 +91,20 @@ const DocumentManagement = () => {
   const handleSendSuccess = () => {
     setIsSendModalOpen(false);
     setSelectedDocument(null);
+  };
+
+  const handleViewHistory = async (document) => {
+    try {
+      setLoadingHistory(true);
+      setSelectedDocument(document);
+      const history = await historyAPI.getByDocument(document.id);
+      setDocumentHistory(history);
+      setIsHistoryModalOpen(true);
+    } catch (err) {
+      error('Lỗi tải lịch sử gửi: ' + err.message);
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   const handleEdit = (document) => {
@@ -364,6 +381,17 @@ const DocumentManagement = () => {
                         </svg>
                       </button>
                       <button 
+                        className="action-btn history" 
+                        onClick={() => handleViewHistory(doc)}
+                        title="Xem lịch sử"
+                        style={{ background: '#667eea', color: 'white' }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <path d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z" stroke="currentColor" strokeWidth="1.5"/>
+                          <path d="M8 5V8L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                        </svg>
+                      </button>
+                      <button 
                         className="action-btn edit" 
                         onClick={() => handleEdit(doc)}
                         title="Chỉnh sửa"
@@ -600,6 +628,50 @@ const DocumentManagement = () => {
               >
                 {updating ? 'Đang cập nhật...' : editFile ? 'Cập nhật và thay file' : 'Cập nhật'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isHistoryModalOpen && selectedDocument && (
+        <div className="history-modal-overlay" onClick={() => setIsHistoryModalOpen(false)}>
+          <div className="history-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="history-modal-header">
+              <h2>Lịch sử gửi: {selectedDocument.name}</h2>
+              <button className="close-button" onClick={() => setIsHistoryModalOpen(false)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+            <div className="history-modal-body">
+              {loadingHistory ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <p>Đang tải lịch sử...</p>
+                </div>
+              ) : documentHistory.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#718096' }}>
+                  <p>Chưa có lịch sử gửi cho tài liệu này</p>
+                </div>
+              ) : (
+                <div className="history-list">
+                  {documentHistory.map((item, index) => (
+                    <div key={index} className="history-item">
+                      <div className="history-item-header">
+                        <span className="history-unit-name">{item.unitName || 'Đơn vị không xác định'}</span>
+                        <span className={`history-status ${item.status === 'Đã gửi' ? 'sent' : 'pending'}`}>
+                          {item.status || 'Đã gửi'}
+                        </span>
+                      </div>
+                      <div className="history-item-details">
+                        <span className="history-date">
+                          {new Date(item.created_at || item.date).toLocaleString('vi-VN')}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

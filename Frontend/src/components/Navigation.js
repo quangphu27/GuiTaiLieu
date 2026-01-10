@@ -84,12 +84,12 @@ const Navigation = () => {
       requireDepartmentHead: true
     },
     {
-      path: '/documents',
-      label: 'Danh sách tài liệu',
+      path: '/dashboard/units',
+      label: 'Quản lý đơn vị',
       icon: (
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M4 4H16V16H4V4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M4 8H16M8 4V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M10 10C12.7614 10 15 7.76142 15 5C15 2.23858 12.7614 0 10 0C7.23858 0 5 2.23858 5 5C5 7.76142 7.23858 10 10 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M0 18C0 14.6863 2.68629 12 6 12H14C17.3137 12 20 14.6863 20 18V20H0V18Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       )
     },

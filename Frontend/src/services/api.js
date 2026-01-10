@@ -261,12 +261,13 @@ export const aiAPI = {
   },
   suggestUnitsStream: (documentId, documentName = '', onUpdate, onError) => {
     const token = getToken();
-    const url = `${API_BASE_URL}/ai/suggest-units-stream?token=${token}`;
+    const url = `${API_BASE_URL}/ai/suggest-units-stream`;
     
     fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
       },
       body: JSON.stringify({ 
         document_id: documentId,

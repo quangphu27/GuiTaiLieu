@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from models.unit import Unit
 from utils.jwt_helper import jwt_required as auth_required, get_current_user
+from datetime import datetime
 
 units_bp = Blueprint('units', __name__)
 
@@ -20,9 +21,12 @@ def get_units():
         if user_role == 'director':
             all_units = Unit.get_all()
             units = [u for u in all_units]
-        elif user_role == 'department_head':
+        elif user_role == 'department_head' or user_role == 'employee':
             if not user_department_id:
-                units = []
+                if user_role == 'employee':
+                    units = Unit.get_all_by_user(user_id)
+                else:
+                    units = []
             else:
                 all_units = Unit.get_all()
                 units = [u for u in all_units if u.get('department_id') and str(u.get('department_id')) == str(user_department_id)]
@@ -55,6 +59,8 @@ def create_unit():
         department_id = data.get('department_id')
         if user_role == 'department_head':
             department_id = user_department_id
+        elif user_role == 'employee':
+            department_id = user_department_id
         elif user_role == 'director':
             department_id = data.get('department_id')
 
@@ -86,10 +92,33 @@ def create_unit():
 @auth_required
 def update_unit(unit_id):
     try:
+        from models.user import User
         user_id = get_current_user()
-        unit = Unit.get_by_id_for_user(unit_id, user_id)
+        current_user = User.get_by_id(user_id)
+        if not current_user:
+            return jsonify({'message': 'Người dùng không tồn tại'}), 401
+        
+        unit = Unit.get_by_id(unit_id)
         if not unit:
             return jsonify({'message': 'Không tìm thấy đơn vị'}), 404
+        
+        user_role = current_user.get('role', 'employee')
+        user_department_id = current_user.get('department_id')
+        
+        can_edit = False
+        if user_role == 'director':
+            can_edit = True
+        elif user_role == 'department_head' and user_department_id:
+            if unit.get('department_id') and str(unit.get('department_id')) == str(user_department_id):
+                can_edit = True
+        elif user_role == 'employee' and user_department_id:
+            if unit.get('department_id') and str(unit.get('department_id')) == str(user_department_id):
+                can_edit = True
+        elif unit.get('user_id') == user_id:
+            can_edit = True
+        
+        if not can_edit:
+            return jsonify({'message': 'Bạn không có quyền chỉnh sửa đơn vị này'}), 403
         
         data = request.get_json()
         update_data = {}
@@ -112,15 +141,30 @@ def update_unit(unit_id):
                 update_data['department_id'] = data['department_id']
         
         if update_data:
-            success, error_msg = Unit.update_for_user(unit_id, user_id, update_data)
-            if success:
+            db = get_db()
+            from bson import ObjectId
+            if 'code' in update_data:
+                update_data['code'] = update_data['code'].upper()
+            update_data['updated_at'] = datetime.utcnow()
+            
+            if user_role == 'director' and 'department_id' in update_data:
+                pass
+            else:
+                if 'department_id' in update_data:
+                    del update_data['department_id']
+            
+            result = db.units.update_one(
+                {'_id': ObjectId(unit_id)},
+                {'$set': update_data}
+            )
+            if result.modified_count > 0:
                 updated_unit = Unit.get_by_id(unit_id)
                 return jsonify({
                     'message': 'Cập nhật đơn vị thành công',
                     'unit': Unit.to_dict(updated_unit)
                 }), 200
             else:
-                return jsonify({'message': error_msg or 'Cập nhật đơn vị thất bại'}), 400
+                return jsonify({'message': 'Cập nhật đơn vị thất bại'}), 400
         else:
             return jsonify({'message': 'Không có dữ liệu để cập nhật'}), 400
     
@@ -131,13 +175,39 @@ def update_unit(unit_id):
 @auth_required
 def delete_unit(unit_id):
     try:
+        from models.user import User
+        from datetime import datetime
         user_id = get_current_user()
-        unit = Unit.get_by_id_for_user(unit_id, user_id)
+        current_user = User.get_by_id(user_id)
+        if not current_user:
+            return jsonify({'message': 'Người dùng không tồn tại'}), 401
+        
+        unit = Unit.get_by_id(unit_id)
         if not unit:
             return jsonify({'message': 'Không tìm thấy đơn vị'}), 404
         
-        success = Unit.delete_for_user(unit_id, user_id)
-        if success:
+        user_role = current_user.get('role', 'employee')
+        user_department_id = current_user.get('department_id')
+        
+        can_delete = False
+        if user_role == 'director':
+            can_delete = True
+        elif user_role == 'department_head' and user_department_id:
+            if unit.get('department_id') and str(unit.get('department_id')) == str(user_department_id):
+                can_delete = True
+        elif user_role == 'employee' and user_department_id:
+            if unit.get('department_id') and str(unit.get('department_id')) == str(user_department_id):
+                can_delete = True
+        elif unit.get('user_id') == user_id:
+            can_delete = True
+        
+        if not can_delete:
+            return jsonify({'message': 'Bạn không có quyền xóa đơn vị này'}), 403
+        
+        db = get_db()
+        from bson import ObjectId
+        result = db.units.delete_one({'_id': ObjectId(unit_id)})
+        if result.deleted_count > 0:
             return jsonify({'message': 'Xóa đơn vị thành công'}), 200
         else:
             return jsonify({'message': 'Xóa đơn vị thất bại'}), 400
@@ -163,9 +233,12 @@ def get_units_by_ids():
         
         if user_role == 'director':
             units = Unit.get_by_ids(unit_ids)
-        elif user_role == 'department_head':
+        elif user_role == 'department_head' or user_role == 'employee':
             if not user_department_id:
-                units = []
+                if user_role == 'employee':
+                    units = Unit.get_by_ids_for_user(unit_ids, user_id)
+                else:
+                    units = []
             else:
                 all_units = Unit.get_by_ids(unit_ids)
                 units = [u for u in all_units if u.get('department_id') and str(u.get('department_id')) == str(user_department_id)]

@@ -74,18 +74,54 @@ def suggest_units_endpoint():
 @auth_required
 def suggest_units_stream_endpoint():
     try:
+        from models.user import User
         user_id = get_current_user()
+        current_user = User.get_by_id(user_id)
+        if not current_user:
+            return jsonify({'message': 'Người dùng không tồn tại'}), 404
+        
         data = request.get_json()
         document_id = data.get('document_id', '')
         
         if not document_id:
             return jsonify({'message': 'Vui lòng cung cấp ID tài liệu'}), 400
         
-        document = Document.get_by_id_for_user(document_id, user_id)
+        document = Document.get_by_id(document_id)
         if not document:
             return jsonify({'message': 'Không tìm thấy tài liệu'}), 404
         
-        all_units = Unit.get_all_by_user(user_id)
+        user_role = current_user.get('role', 'employee')
+        user_department_id = current_user.get('department_id')
+        
+        can_access = False
+        if user_role == 'director':
+            can_access = True
+        elif user_role == 'department_head' and user_department_id:
+            if document.get('department_id') and str(document.get('department_id')) == str(user_department_id):
+                can_access = True
+        elif user_role == 'employee':
+            if document.get('user_id') == user_id:
+                can_access = True
+            elif user_department_id and document.get('department_id') and str(document.get('department_id')) == str(user_department_id):
+                can_access = True
+        
+        if not can_access:
+            return jsonify({'message': 'Bạn không có quyền truy cập tài liệu này'}), 403
+        
+        if user_role == 'director':
+            all_units = Unit.get_all()
+        elif user_role == 'department_head' or user_role == 'employee':
+            if not user_department_id:
+                if user_role == 'employee':
+                    all_units = Unit.get_all_by_user(user_id)
+                else:
+                    all_units = []
+            else:
+                all_units_list = Unit.get_all()
+                all_units = [u for u in all_units_list if u.get('department_id') and str(u.get('department_id')) == str(user_department_id)]
+        else:
+            all_units = Unit.get_all_by_user(user_id)
+        
         units_with_id = [Unit.to_dict(unit) for unit in all_units]
         
         if not units_with_id:
