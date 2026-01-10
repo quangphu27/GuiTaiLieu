@@ -6,13 +6,14 @@ class User:
     @staticmethod
     def create(username, password, role='employee', department_id=None, created_by=None, name=None, birth_date=None, phone=None):
         db = get_db()
+        from bson import ObjectId
         hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         user = {
             'username': username,
             'password': hashed.decode('utf-8'),
             'role': role,
-            'department_id': department_id,
-            'created_by': created_by,
+            'department_id': ObjectId(department_id) if department_id and isinstance(department_id, str) else (department_id if department_id else None),
+            'created_by': ObjectId(created_by) if created_by and isinstance(created_by, str) else (created_by if created_by else None),
             'name': name,
             'birth_date': birth_date,
             'phone': phone,
@@ -50,9 +51,19 @@ class User:
         db = get_db()
         from bson import ObjectId
         try:
+            if not department_id:
+                return []
             dept_obj_id = ObjectId(department_id) if isinstance(department_id, str) else department_id
-            return list(db.users.find({'department_id': dept_obj_id}).sort('created_at', -1))
-        except:
+            dept_str_id = str(department_id)
+            return list(db.users.find({
+                '$or': [
+                    {'department_id': dept_obj_id},
+                    {'department_id': dept_str_id}
+                ]
+            }).sort('created_at', -1))
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
             return []
     
     @staticmethod
@@ -61,6 +72,12 @@ class User:
         from bson import ObjectId
         try:
             data['updated_at'] = datetime.utcnow()
+            if 'department_id' in data and data['department_id']:
+                data['department_id'] = ObjectId(data['department_id']) if isinstance(data['department_id'], str) else data['department_id']
+            elif 'department_id' in data and data['department_id'] is None:
+                data['department_id'] = None
+            if 'created_by' in data and data['created_by']:
+                data['created_by'] = ObjectId(data['created_by']) if isinstance(data['created_by'], str) else data['created_by']
             result = db.users.update_one(
                 {'_id': ObjectId(user_id)},
                 {'$set': data}

@@ -42,15 +42,28 @@ def get_documents():
         from bson import ObjectId
         
         if user_role == 'director':
-            documents = db.documents.find().sort('created_at', -1)
+            documents = list(db.documents.find().sort('created_at', -1))
         elif user_role == 'department_head' and user_department_id:
-            department_user_ids = []
             dept_users = User.get_by_department(user_department_id)
-            department_user_ids = [str(u['_id']) for u in dept_users]
-            department_user_ids.append(user_id)
-            documents = db.documents.find({'user_id': {'$in': department_user_ids}}).sort('created_at', -1)
+            department_user_ids = [ObjectId(u['_id']) if isinstance(u['_id'], str) else u['_id'] for u in dept_users]
+            department_user_ids.append(ObjectId(user_id) if isinstance(user_id, str) else user_id)
+            documents = list(db.documents.find({
+                '$or': [
+                    {'user_id': {'$in': department_user_ids}},
+                    {'department_id': ObjectId(user_department_id) if isinstance(user_department_id, str) else user_department_id}
+                ]
+            }).sort('created_at', -1))
         else:
-            documents = Document.get_all_by_user(user_id)
+            if user_department_id:
+                dept_obj_id = ObjectId(user_department_id) if isinstance(user_department_id, str) else user_department_id
+                documents = list(db.documents.find({
+                    '$or': [
+                        {'user_id': ObjectId(user_id) if isinstance(user_id, str) else user_id},
+                        {'department_id': dept_obj_id}
+                    ]
+                }).sort('created_at', -1))
+            else:
+                documents = Document.get_all_by_user(user_id)
         
         result = []
         for doc in documents:
@@ -89,6 +102,11 @@ def upload_document():
         file_size = get_file_size(os.path.getsize(filepath))
         
         user_id = get_current_user()
+        current_user = User.get_by_id(user_id)
+        if not current_user:
+            return jsonify({'message': 'Người dùng không tồn tại'}), 401
+        
+        user_department_id = current_user.get('department_id')
 
         document_data = {
             'name': filename,
@@ -97,7 +115,8 @@ def upload_document():
             'filename': unique_filename,
             'filepath': filepath,
             'status': 'active',
-            'user_id': user_id
+            'user_id': user_id,
+            'department_id': user_department_id
         }
         
         doc_id = Document.create(document_data)

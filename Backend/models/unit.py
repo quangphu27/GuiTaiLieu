@@ -10,8 +10,13 @@ class Unit:
         Tạo đơn vị mới. Caller cần truyền kèm 'user_id' để gắn với tài khoản.
         """
         db = get_db()
+        from bson import ObjectId
         data['created_at'] = datetime.utcnow()
         data['updated_at'] = datetime.utcnow()
+        if 'department_id' in data and data['department_id']:
+            data['department_id'] = ObjectId(data['department_id']) if isinstance(data['department_id'], str) else data['department_id']
+        if 'user_id' in data and data['user_id']:
+            data['user_id'] = ObjectId(data['user_id']) if isinstance(data['user_id'], str) else data['user_id']
         try:
             result = db.units.insert_one(data)
             return str(result.inserted_id), None
@@ -128,6 +133,10 @@ class Unit:
             return None
         unit['id'] = str(unit['_id'])
         del unit['_id']
+        if 'user_id' in unit and unit['user_id']:
+            unit['user_id'] = str(unit['user_id'])
+        if 'department_id' in unit and unit['department_id']:
+            unit['department_id'] = str(unit['department_id'])
         if 'created_at' in unit:
             unit['created_at'] = unit['created_at'].isoformat()
         if 'updated_at' in unit:

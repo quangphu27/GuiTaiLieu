@@ -56,10 +56,14 @@ def create_unit():
         user_role = user.get('role', 'employee')
         user_department_id = user.get('department_id')
         
+        if user_role == 'employee':
+            return jsonify({'message': 'Nhân viên không có quyền tạo đơn vị'}), 403
+        
+        from bson import ObjectId
         department_id = data.get('department_id')
         if user_role == 'department_head':
-            department_id = user_department_id
-        elif user_role == 'employee':
+            if not user_department_id:
+                return jsonify({'message': 'Trưởng phòng phải có phòng ban'}), 400
             department_id = user_department_id
         elif user_role == 'director':
             department_id = data.get('department_id')
@@ -105,13 +109,13 @@ def update_unit(unit_id):
         user_role = current_user.get('role', 'employee')
         user_department_id = current_user.get('department_id')
         
+        if user_role == 'employee':
+            return jsonify({'message': 'Nhân viên không có quyền chỉnh sửa đơn vị'}), 403
+        
         can_edit = False
         if user_role == 'director':
             can_edit = True
         elif user_role == 'department_head' and user_department_id:
-            if unit.get('department_id') and str(unit.get('department_id')) == str(user_department_id):
-                can_edit = True
-        elif user_role == 'employee' and user_department_id:
             if unit.get('department_id') and str(unit.get('department_id')) == str(user_department_id):
                 can_edit = True
         elif unit.get('user_id') == user_id:
@@ -189,13 +193,13 @@ def delete_unit(unit_id):
         user_role = current_user.get('role', 'employee')
         user_department_id = current_user.get('department_id')
         
+        if user_role == 'employee':
+            return jsonify({'message': 'Nhân viên không có quyền xóa đơn vị'}), 403
+        
         can_delete = False
         if user_role == 'director':
             can_delete = True
         elif user_role == 'department_head' and user_department_id:
-            if unit.get('department_id') and str(unit.get('department_id')) == str(user_department_id):
-                can_delete = True
-        elif user_role == 'employee' and user_department_id:
             if unit.get('department_id') and str(unit.get('department_id')) == str(user_department_id):
                 can_delete = True
         elif unit.get('user_id') == user_id:

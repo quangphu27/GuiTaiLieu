@@ -256,6 +256,7 @@ def get_department_employees():
             return jsonify({'message': 'Trưởng phòng phải có phòng ban'}), 400
         
         employees = User.get_by_department(department_id)
+        
         result = []
         for emp in employees:
             if emp.get('role') == 'employee':
@@ -287,7 +288,8 @@ def update_department_employee(employee_id):
         if not target_user:
             return jsonify({'message': 'Không tìm thấy nhân viên'}), 404
         
-        if target_user.get('department_id') != department_id or target_user.get('role') != 'employee':
+        target_dept_id = target_user.get('department_id')
+        if not target_dept_id or str(target_dept_id) != str(department_id) or target_user.get('role') != 'employee':
             return jsonify({'message': 'Bạn chỉ có quyền quản lý nhân viên trong phòng ban của mình'}), 403
         
         data = request.get_json()
@@ -355,7 +357,8 @@ def delete_department_employee(employee_id):
         if not target_user:
             return jsonify({'message': 'Không tìm thấy nhân viên'}), 404
         
-        if target_user.get('department_id') != department_id or target_user.get('role') != 'employee':
+        target_dept_id = target_user.get('department_id')
+        if not target_dept_id or str(target_dept_id) != str(department_id) or target_user.get('role') != 'employee':
             return jsonify({'message': 'Bạn chỉ có quyền xóa nhân viên trong phòng ban của mình'}), 403
         
         success = User.update(employee_id, {'department_id': None})

@@ -8,6 +8,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isDirector = user?.role === 'director';
+  const isDepartmentHead = user?.role === 'department_head';
 
   const menuItems = [
     {
@@ -25,6 +26,15 @@ const Dashboard = () => {
       icon: '🏢',
       path: '/dashboard/units',
       color: '#f093fb'
+    },
+    {
+      id: 'department-employees',
+      title: 'Quản lý nhân viên',
+      description: 'Quản lý nhân viên trong phòng ban',
+      icon: '👨‍💼',
+      path: '/dashboard/department-employees',
+      color: '#ffd93d',
+      requireDepartmentHead: true
     },
     {
       id: 'users',
@@ -50,12 +60,16 @@ const Dashboard = () => {
       description: 'Xem lịch sử gửi tài liệu',
       icon: '📋',
       path: '/dashboard/history',
-      color: '#4facfe'
+      color: '#4facfe',
+      requireDirector: true
     },
   ];
 
   const filteredMenuItems = menuItems.filter(item => {
     if (item.requireDirector && !isDirector) {
+      return false;
+    }
+    if (item.requireDepartmentHead && !isDepartmentHead) {
       return false;
     }
     return true;
